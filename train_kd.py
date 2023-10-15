@@ -4,9 +4,9 @@ import utils
 from tqdm import tqdm
 import logging
 from torch.autograd import Variable
-from evaluate import evaluate, evaluate_kd
+from evaluate import evaluate
 from tensorboardX import SummaryWriter
-from torch.optim.lr_scheduler import StepLR, MultiStepLR
+from torch.optim.lr_scheduler import MultiStepLR
 
 
 def train_and_evaluate_kd(model, teacher_model, train_dataloader, val_dataloader, optimizer,
@@ -16,7 +16,7 @@ def train_and_evaluate_kd(model, teacher_model, train_dataloader, val_dataloader
 
     best_val_acc = 0.0
     teacher_model.eval()
-    teacher_acc = evaluate_kd(teacher_model, val_dataloader)
+    teacher_acc = evaluate(teacher_model, loss_fn_kd, val_dataloader, kd=True)
     print(">>>>>>>>>The teacher accuracy: {}>>>>>>>>>".format(
         teacher_acc['accuracy']))
 
@@ -31,7 +31,7 @@ def train_and_evaluate_kd(model, teacher_model, train_dataloader, val_dataloader
         train_acc, train_loss = train_kd(
             model, teacher_model, optimizer, loss_fn_kd, train_dataloader, warmup_scheduler, params, epoch)
         # Evaluate
-        val_metrics = evaluate_kd(model, loss_fn_kd, val_dataloader, kd=True)
+        val_metrics = evaluate(model, loss_fn_kd, val_dataloader, kd=True)
 
         val_acc = val_metrics['accuracy']
         is_best = val_acc >= best_val_acc
@@ -82,8 +82,8 @@ def train_kd(model, teacher_model, optimizer, loss_fn_kd, dataloader, warmup_sch
 
             train_batch, labels_batch = train_batch.cuda(), labels_batch.cuda()
 
-            data_batch, labels_batch = Variable(
-                data_batch), Variable(labels_batch)
+            train_batch, labels_batch = Variable(
+                train_batch), Variable(labels_batch)
 
             # compute model output, fetch teacher output, and compute KD loss
             output_batch = model(train_batch)
@@ -180,8 +180,8 @@ def train(model, optimizer, loss_fn, dataloader, epoch, warmup_scheduler):
             if epoch <= 0:
                 warmup_scheduler.step()
 
-            data_batch, labels_batch = Variable(
-                data_batch), Variable(labels_batch)
+            train_batch, labels_batch = Variable(
+                train_batch), Variable(labels_batch)
 
             optimizer.zero_grad()
             output_batch = model(train_batch)

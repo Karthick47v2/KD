@@ -13,7 +13,6 @@ import data_loader as data_loader
 import model.resnet as resnet
 import model.mobilenetv2 as mobilenet
 import model.shufflenetv2 as shufflenet
-from my_loss_function import loss_kd
 from train_kd import train_and_evaluate, train_and_evaluate_kd
 
 
@@ -83,7 +82,6 @@ def main():
                                           iter_per_epoch * args.warm)  # warmup the learning rate in the first epoch
 
         # specify loss function
-        loss_fn_kd = loss_kd
 
         """ 
             Specify the pre-trained teacher models for knowledge distillation
@@ -122,7 +120,7 @@ def main():
         # Train the model with KD
         logging.info(
             "Starting training for {} epoch(s)".format(params.num_epochs))
-        train_and_evaluate_kd(model, teacher_model, train_dl, dev_dl, optimizer, loss_fn_kd,
+        train_and_evaluate_kd(model, teacher_model, train_dl, dev_dl, optimizer, utils.loss_kd,
                               warmup_scheduler, params, args)
 
     # non-KD mode: regular training to obtain a baseline model

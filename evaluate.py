@@ -5,19 +5,6 @@ import utils
 
 
 def evaluate(model, loss_fn, dataloader, kd=False):
-    """Evaluate the model on the given data.
-
-    Args:
-        model: (torch.nn.Module) the neural network
-        loss_fn: a function that takes batch_output and batch_labels and computes the loss for the batch
-        dataloader: (DataLoader) a torch.utils.data.DataLoader object that fetches data
-        params: (Params) hyperparameters
-        args: (argparse.Namespace) command line arguments
-        kd_mode: (bool) knowledge distillation mode
-
-    Returns:
-        my_metric: (dict) a dictionary containing evaluation metrics (accuracy and loss)
-    """
     model.eval()
     losses = utils.AverageMeter()
     total = 0
@@ -30,9 +17,10 @@ def evaluate(model, loss_fn, dataloader, kd=False):
         # Compute model output
         output_batch = model(data_batch)
 
-        # Compute loss (0.0 for KD mode)
-        loss = 0.0 if kd else loss_fn(output_batch, labels_batch)
-        losses.update(loss.data, data_batch.size(0))
+        # loss is not needed in KD mode
+        if not kd:
+            losses.update(loss_fn(output_batch, labels_batch).data,
+                          data_batch.size(0))
 
         # Calculate accuracy
         _, predicted = output_batch.max(1)

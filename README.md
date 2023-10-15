@@ -1,15 +1,5 @@
 # Teacher-free-Knowledge-Distillation
 
-## Implementation for our paper: Revisiting Knowledge Distillation via Label Smoothing Regularization, [arxiv](https://scholar.google.com/scholar?hl=en&as_sdt=0%2C22&q=Revisit+Knowledge+Distillation%3A+a+Teacher-free+Framework+Yuan&btnG=)
-
-The paper in arxiv and CVPR2020 has different titles: Revisiting Knowledge Distillation via Label Smoothing Regularization and Revisit Knowledge Distillation (CVPR) a Teacher-free Framework (arxiv), we will update the arxiv version with the correct title.
-
-Our work suggests that: when a neural network is too powerful to find stronger teacher models, or computation resource is limited to train teacher models, "self-training" or "manually-designed regularization" can be applied.
-
-For example, ResNeXt101-32x8d is a powerful model with 88.79M parameters and 16.51G FLOPs on ImageNet, and it is hard or computation expensive to train a stronger teacher model for this student. Our strategy can further improve this powerful student model by 0.48\% without extra computation on ImageNet. Similarly, when taking a powerful single model ResNeXt29-8x64d with 34.53M parameters as a student model, our self-training implementation achieves more than 1.0\% improvement on CIFAR100 (from 81.03\% to 82.08\%).
-
-![](/figures/figure_ill.png)
-
 ## 1. Preparations
 
 Clone this repository:

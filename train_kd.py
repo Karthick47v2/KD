@@ -1,4 +1,5 @@
 import os
+
 import utils
 from tqdm import tqdm
 import logging
@@ -11,17 +12,10 @@ from torch.optim.lr_scheduler import StepLR, MultiStepLR
 
 
 def train_and_evaluate_kd(model, teacher_model, train_dataloader, val_dataloader, optimizer,
-                          loss_fn_kd, warmup_scheduler, params, args, restore_file=None):
+                          loss_fn_kd, warmup_scheduler, params, args):
     """
     KD Train the model and evaluate every epoch.
     """
-    # reload weights from restore_file if specified
-    if restore_file is not None:
-        restore_path = os.path.join(
-            args.model_dir, args.restore_file + '.pth.tar')
-        logging.info("Restoring parameters from {}".format(restore_path))
-        utils.load_checkpoint(restore_path, model, optimizer)
-
     # tensorboard setting
     log_dir = args.model_dir + '/tensorboard/'
     writer = SummaryWriter(log_dir=log_dir)
@@ -139,25 +133,13 @@ def train_kd(model, teacher_model, optimizer, loss_fn_kd, dataloader, warmup_sch
 
 # normal training
 def train_and_evaluate(model, train_dataloader, val_dataloader, optimizer,
-                       loss_fn, params, model_dir, warmup_scheduler, args, restore_file=None):
+                       loss_fn, params, model_dir, warmup_scheduler, args):
     """
     Train the model and evaluate every epoch.
     """
-    # reload weights from restore_file if specified
-    if restore_file is not None:
-        restore_path = os.path.join(
-            args.model_dir, args.restore_file + '.pth.tar')
-        logging.info("Restoring parameters from {}".format(restore_path))
-        utils.load_checkpoint(restore_path, model, optimizer)
 
     # dir setting, tensorboard events will save in the dirctory
     log_dir = args.model_dir + '/base_train/'
-    if args.regularization:
-        log_dir = args.model_dir + '/Tf-KD_regularization/'
-        model_dir = log_dir
-    elif args.label_smoothing:
-        log_dir = args.model_dir + '/label_smoothing/'
-        model_dir = log_dir
     writer = SummaryWriter(log_dir=log_dir)
 
     best_val_acc = 0.0

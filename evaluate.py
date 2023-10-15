@@ -1,5 +1,3 @@
-"""Evaluates the model"""
-
 import argparse
 import logging
 
@@ -7,7 +5,8 @@ from torch.autograd import Variable
 import utils
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--model_dir', default='experiments/base_model', help="Directory of params.json")
+parser.add_argument('--model_dir', default='experiments/base_model',
+                    help="Directory of params.json")
 parser.add_argument('--restore_file', default='best', help="name of the file in --model_dir \
                      containing weights to load")
 
@@ -33,7 +32,7 @@ def evaluate(model, loss_fn, dataloader, params, args):
     # compute metrics over the dataset
     for data_batch, labels_batch in dataloader:
 
-        data_batch, labels_batch = data_batch.cuda(async=True), labels_batch.cuda(async=True)
+        data_batch, labels_batch = data_batch.cuda(), labels_batch.cuda()
 
         data_batch, labels_batch = Variable(data_batch), Variable(labels_batch)
         # compute model output
@@ -50,7 +49,8 @@ def evaluate(model, loss_fn, dataloader, params, args):
 
     loss_avg = losses.avg
     acc = 100.*correct/total
-    logging.info("- Eval metrics, acc:{acc:.4f}, loss: {loss_avg:.4f}".format(acc=acc, loss_avg=loss_avg))
+    logging.info(
+        "- Eval metrics, acc:{acc:.4f}, loss: {loss_avg:.4f}".format(acc=acc, loss_avg=loss_avg))
     my_metric = {'accuracy': acc, 'loss': loss_avg}
     return my_metric
 
@@ -60,6 +60,8 @@ This function duplicates "evaluate()" but ignores "loss_fn" simply for speedup p
 Validation loss during KD mode would display '0' all the time.
 One can bring that info back by using the fetched teacher outputs during evaluation (refer to train.py)
 """
+
+
 def evaluate_kd(model, dataloader, params):
     """Evaluate the model on `num_steps` batches.
 
@@ -81,21 +83,22 @@ def evaluate_kd(model, dataloader, params):
     for i, (data_batch, labels_batch) in enumerate(dataloader):
 
         # move to GPU if available
-        data_batch, labels_batch = data_batch.cuda(async=True), labels_batch.cuda(async=True)
+        data_batch, labels_batch = data_batch.cuda(), labels_batch.cuda()
         # fetch the next evaluation batch
         data_batch, labels_batch = Variable(data_batch), Variable(labels_batch)
-        
+
         # compute model output
         output_batch = model(data_batch)
 
         # loss = loss_fn_kd(output_batch, labels_batch, output_teacher_batch, params)
-        loss = 0.0  #force validation loss to zero to reduce computation time
+        loss = 0.0  # force validation loss to zero to reduce computation time
         _, predicted = output_batch.max(1)
         total += labels_batch.size(0)
         correct += predicted.eq(labels_batch).sum().item()
 
     acc = 100. * correct / total
-    logging.info("- Eval metrics, acc:{acc:.4f}, loss: {loss:.4f}".format(acc=acc, loss=loss))
+    logging.info(
+        "- Eval metrics, acc:{acc:.4f}, loss: {loss:.4f}".format(acc=acc, loss=loss))
     my_metric = {'accuracy': acc, 'loss': loss}
-    #my_metric['accuracy'] = acc
+    # my_metric['accuracy'] = acc
     return my_metric

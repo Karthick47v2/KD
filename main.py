@@ -1,6 +1,3 @@
-"""
-Teacher free KD, main.py
-"""
 import argparse
 import logging
 import os
@@ -17,29 +14,17 @@ import data_loader as data_loader
 import model.resnet as resnet
 import model.mobilenetv2 as mobilenet
 import model.shufflenetv2 as shufflenet
-from my_loss_function import loss_label_smoothing, loss_kd_regularization, loss_kd, loss_kd_self
+from my_loss_function import loss_kd
 from train_kd import train_and_evaluate, train_and_evaluate_kd
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--model_dir', default='experiments/base_experiments/base_resnet18/',
                     help="Directory containing params.json")
-parser.add_argument('--restore_file', default=None, help="Optional, name of the file in --model_dir \
-                    containing weights to reload before training")  # 'best' or 'train'
 parser.add_argument('--num_class', default=100,
                     type=int, help="number of classes")
 parser.add_argument('-warm', type=int, default=1,
                     help='warm up training phase')
-parser.add_argument('--regularization', action='store_true',
-                    default=False, help="flag for regulization")
-parser.add_argument('--label_smoothing', action='store_true',
-                    default=False, help="flag for label smoothing")
-parser.add_argument('--double_training', action='store_true',
-                    default=False, help="flag for double training")
-parser.add_argument('--self_training', action='store_true',
-                    default=False, help="flag for self training")
-parser.add_argument('--pt_teacher', action='store_true',
-                    default=False, help="flag for Defective KD")
 
 
 def main():
@@ -63,12 +48,8 @@ def main():
     # Create the input data pipeline
     logging.info("Loading the datasets...")
 
-    # fetch dataloaders, considering full-set vs. sub-set scenarios
-    if params.subset_percent < 1.0:
-        train_dl = data_loader.fetch_subset_dataloader('train', params)
-    else:
-        train_dl = data_loader.fetch_dataloader('train', params)
-
+    # fetch dataloaders
+    train_dl = data_loader.fetch_dataloader('train', params)
     dev_dl = data_loader.fetch_dataloader('dev', params)
 
     logging.info("- done.")
@@ -79,11 +60,7 @@ def main():
     if "distill" in params.model_version:
 
         # Specify the student models
-        if params.model_version == "cnn_distill":  # 5-layers Plain CNN
-            print("Student model: {}".format(params.model_version))
-            model = net.Net(params).cuda()
-
-        elif params.model_version == "shufflenet_v2_distill":
+        if params.model_version == "shufflenet_v2_distill":
             print("Student model: {}".format(params.model_version))
             model = shufflenet.shufflenetv2(class_num=args.num_class).cuda()
 
@@ -99,25 +76,15 @@ def main():
             print("Student model: {}".format(params.model_version))
             model = resnet.ResNet50(num_classes=args.num_class).cuda()
 
-        # optimizer
-        if params.model_version == "cnn_distill":
-            optimizer = optim.Adam(
-                model.parameters(), lr=params.learning_rate * (params.batch_size / 128))
-        else:
-            optimizer = optim.SGD(model.parameters(), lr=params.learning_rate * (params.batch_size / 128), momentum=0.9,
-                                  weight_decay=5e-4)
+        optimizer = optim.SGD(model.parameters(), lr=params.learning_rate * (params.batch_size / 128), momentum=0.9,
+                              weight_decay=5e-4)
 
         iter_per_epoch = len(train_dl)
         warmup_scheduler = utils.WarmUpLR(optimizer,
                                           iter_per_epoch * args.warm)  # warmup the learning rate in the first epoch
 
         # specify loss function
-        if args.self_training:
-            print(
-                '>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>self training>>>>>>>>>>>>>>>>>>>>>>>>>>>>>')
-            loss_fn_kd = loss_kd_self
-        else:
-            loss_fn_kd = loss_kd
+        loss_fn_kd = loss_kd
 
         """ 
             Specify the pre-trained teacher models for knowledge distillation
@@ -126,24 +93,18 @@ def main():
         """
         if params.teacher == "resnet18":
             print("Teacher model: {}".format(params.teacher))
-            teacher_model = resnet.ResNet18(num_classes=args.num_class)
+            teacher_model = resnet.ResNet18(num_classes=args.num_class).cuda()
             teacher_checkpoint = 'experiments/pretrained_teacher_models/base_resnet18/best.pth.tar'
-            if args.pt_teacher:  # poorly-trained teacher for Defective KD experiments
-                teacher_checkpoint = 'experiments/pretrained_teacher_models/base_resnet18/0.pth.tar'
-            teacher_model = teacher_model.cuda()
 
         elif params.teacher == "resnet50":
             print("Teacher model: {}".format(params.teacher))
             teacher_model = resnet.ResNet50(num_classes=args.num_class).cuda()
             teacher_checkpoint = 'experiments/pretrained_teacher_models/base_resnet50/best.pth.tar'
-            if args.pt_teacher:  # poorly-trained teacher for Defective KD experiments
-                teacher_checkpoint = 'experiments/pretrained_teacher_models/base_resnet50/50.pth.tar'
 
         elif params.teacher == "resnet101":
             print("Teacher model: {}".format(params.teacher))
             teacher_model = resnet.ResNet101(num_classes=args.num_class).cuda()
             teacher_checkpoint = 'experiments/pretrained_teacher_models/base_resnet101/best.pth.tar'
-            teacher_model = teacher_model.cuda()
 
         elif params.teacher == "mobilenet_v2":
             print("Teacher model: {}".format(params.teacher))
@@ -163,15 +124,12 @@ def main():
         logging.info(
             "Starting training for {} epoch(s)".format(params.num_epochs))
         train_and_evaluate_kd(model, teacher_model, train_dl, dev_dl, optimizer, loss_fn_kd,
-                              warmup_scheduler, params, args, args.restore_file)
+                              warmup_scheduler, params, args)
 
     # non-KD mode: regular training to obtain a baseline model
     else:
         print("Train base model")
-        if params.model_version == "cnn":
-            model = net.Net(params).cuda()
-
-        elif params.model_version == "mobilenet_v2":
+        if params.model_version == "mobilenet_v2":
             print("model: {}".format(params.model_version))
             model = mobilenet.mobilenetv2(class_num=args.num_class).cuda()
 
@@ -191,28 +149,11 @@ def main():
         elif params.model_version == "resnet152":
             model = resnet.ResNet152(num_classes=args.num_class).cuda()
 
-        if args.regularization:
-            print(
-                ">>>>>>>>>>>>>>>>>>>>>>>>Loss of Regularization>>>>>>>>>>>>>>>>>>>>>>>>")
-            loss_fn = loss_kd_regularization
-        elif args.label_smoothing:
-            print(">>>>>>>>>>>>>>>>>>>>>>>>Label Smoothing>>>>>>>>>>>>>>>>>>>>>>>>")
-            loss_fn = loss_label_smoothing
-        else:
-            print(">>>>>>>>>>>>>>>>>>>>>>>>Normal Training>>>>>>>>>>>>>>>>>>>>>>>>")
-            loss_fn = nn.CrossEntropyLoss()
-            if args.double_training:  # double training, compare to self-KD
-                print(">>>>>>>>>>>>>>>>>>>>>>>>Double Training>>>>>>>>>>>>>>>>>>>>>>>>")
-                checkpoint = 'experiments/pretrained_teacher_models/base_' + \
-                    str(params.model_version) + '/best.pth.tar'
-                utils.load_checkpoint(checkpoint, model)
+        print(">>>>>>>>>>>>>>>>>>>>>>>>Normal Training>>>>>>>>>>>>>>>>>>>>>>>>")
+        loss_fn = nn.CrossEntropyLoss()
 
-        if params.model_version == "cnn":
-            optimizer = optim.Adam(
-                model.parameters(), lr=params.learning_rate * (params.batch_size / 128))
-        else:
-            optimizer = optim.SGD(model.parameters(), lr=params.learning_rate * (params.batch_size / 128), momentum=0.9,
-                                  weight_decay=5e-4)
+        optimizer = optim.SGD(model.parameters(), lr=params.learning_rate * (params.batch_size / 128), momentum=0.9,
+                              weight_decay=5e-4)
 
         iter_per_epoch = len(train_dl)
         warmup_scheduler = utils.WarmUpLR(
@@ -222,7 +163,7 @@ def main():
         logging.info(
             "Starting training for {} epoch(s)".format(params.num_epochs))
         train_and_evaluate(model, train_dl, dev_dl, optimizer, loss_fn, params,
-                           args.model_dir, warmup_scheduler, args, args.restore_file)
+                           args.model_dir, warmup_scheduler, args)
 
 
 if __name__ == '__main__':

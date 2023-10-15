@@ -1,7 +1,8 @@
-"""shufflenetv2 in pytorch
-[1] Ningning Ma, Xiangyu Zhang, Hai-Tao Zheng, Jian Sun
-    ShuffleNet V2: Practical Guidelines for Efficient CNN Architecture Design
-    https://arxiv.org/abs/1807.11164
+"""ShuffleNetV2 in pytorch
+
+Reference:
+Ningning Ma, Xiangyu Zhang, Hai-Tao Zheng, Jian Sun
+ShuffleNet V2: Practical Guidelines for Efficient CNN Architecture Design
 """
 
 import torch
@@ -27,7 +28,7 @@ def channel_shuffle(x, groups):
     """
 
     batch_size, channels, height, width = x.size()
-    channels_per_group = int(channels / groups)
+    channels_per_group = channels // groups
 
     x = x.view(batch_size, groups, channels_per_group, height, width)
     x = x.transpose(1, 2).contiguous()
@@ -47,37 +48,37 @@ class ShuffleUnit(nn.Module):
 
         if stride != 1 or in_channels != out_channels:
             self.residual = nn.Sequential(
-                nn.Conv2d(in_channels, in_channels, 1),
+                nn.Conv2d(in_channels, in_channels, kernel_size=1),
                 nn.BatchNorm2d(in_channels),
                 nn.ReLU(inplace=True),
-                nn.Conv2d(in_channels, in_channels, 3, stride=stride,
+                nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=stride,
                           padding=1, groups=in_channels),
                 nn.BatchNorm2d(in_channels),
-                nn.Conv2d(in_channels, int(out_channels / 2), 1),
-                nn.BatchNorm2d(int(out_channels / 2)),
+                nn.Conv2d(in_channels, out_channels // 2, kernel_size=1),
+                nn.BatchNorm2d(out_channels // 2),
                 nn.ReLU(inplace=True)
             )
 
             self.shortcut = nn.Sequential(
-                nn.Conv2d(in_channels, in_channels, 3, stride=stride,
+                nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=stride,
                           padding=1, groups=in_channels),
                 nn.BatchNorm2d(in_channels),
-                nn.Conv2d(in_channels, int(out_channels / 2), 1),
-                nn.BatchNorm2d(int(out_channels / 2)),
+                nn.Conv2d(in_channels, out_channels // 2, kernel_size=1),
+                nn.BatchNorm2d(out_channels // 2),
                 nn.ReLU(inplace=True)
             )
         else:
             self.shortcut = nn.Sequential()
 
-            in_channels = int(in_channels / 2)
+            in_channels = in_channels // 2
             self.residual = nn.Sequential(
-                nn.Conv2d(in_channels, in_channels, 1),
+                nn.Conv2d(in_channels, in_channels, kernel_size=1),
                 nn.BatchNorm2d(in_channels),
                 nn.ReLU(inplace=True),
-                nn.Conv2d(in_channels, in_channels, 3, stride=stride,
+                nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=stride,
                           padding=1, groups=in_channels),
                 nn.BatchNorm2d(in_channels),
-                nn.Conv2d(in_channels, in_channels, 1),
+                nn.Conv2d(in_channels, in_channels, kernel_size=1),
                 nn.BatchNorm2d(in_channels),
                 nn.ReLU(inplace=True)
             )
@@ -85,7 +86,7 @@ class ShuffleUnit(nn.Module):
     def forward(self, x):
 
         if self.stride == 1 and self.out_channels == self.in_channels:
-            shortcut, residual = channel_split(x, int(self.in_channels / 2))
+            shortcut, residual = channel_split(x, self.in_channels // 2)
         else:
             shortcut = x
             residual = x
@@ -111,10 +112,10 @@ class ShuffleNetV2(nn.Module):
         elif ratio == 2:
             out_channels = [244, 488, 976, 2048]
         else:
-            ValueError('unsupported ratio number')
+            raise ValueError('Unsupported ratio number')
 
         self.pre = nn.Sequential(
-            nn.Conv2d(3, 24, 3, padding=1),
+            nn.Conv2d(3, 24, kernel_size=3, padding=1),
             nn.BatchNorm2d(24)
         )
 
@@ -122,7 +123,7 @@ class ShuffleNetV2(nn.Module):
         self.stage3 = self._make_stage(out_channels[0], out_channels[1], 7)
         self.stage4 = self._make_stage(out_channels[1], out_channels[2], 3)
         self.conv5 = nn.Sequential(
-            nn.Conv2d(out_channels[2], out_channels[3], 1),
+            nn.Conv2d(out_channels[2], out_channels[3], kernel_size=1),
             nn.BatchNorm2d(out_channels[3]),
             nn.ReLU(inplace=True)
         )
@@ -145,9 +146,8 @@ class ShuffleNetV2(nn.Module):
         layers = []
         layers.append(ShuffleUnit(in_channels, out_channels, 2))
 
-        while repeat:
+        for _ in range(repeat):
             layers.append(ShuffleUnit(out_channels, out_channels, 1))
-            repeat -= 1
 
         return nn.Sequential(*layers)
 

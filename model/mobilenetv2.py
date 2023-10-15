@@ -1,29 +1,31 @@
-"""mobilenetv2 in pytorch
-[1] Mark Sandler, Andrew Howard, Menglong Zhu, Andrey Zhmoginov, Liang-Chieh Chen
-    MobileNetV2: Inverted Residuals and Linear Bottlenecks
-    https://arxiv.org/abs/1801.04381
-"""
+"""MobileNetV2 in pytorch
 
+Reference:
+Mark Sandler, Andrew Howard, Menglong Zhu, Andrey Zhmoginov, Liang-Chieh Chen
+MobileNetV2: Inverted Residuals and Linear Bottlenecks
+"""
 import torch.nn as nn
 import torch.nn.functional as F
 
 
 class LinearBottleNeck(nn.Module):
 
-    def __init__(self, in_channels, out_channels, stride, t=6, class_num=100):
+    def __init__(self, in_channels, out_channels, stride, expansion=6):
         super().__init__()
 
+        hidden_dim = in_channels * expansion
+
         self.residual = nn.Sequential(
-            nn.Conv2d(in_channels, in_channels * t, 1),
-            nn.BatchNorm2d(in_channels * t),
+            nn.Conv2d(in_channels, hidden_dim, kernel_size=1),
+            nn.BatchNorm2d(hidden_dim),
             nn.ReLU6(inplace=True),
 
-            nn.Conv2d(in_channels * t, in_channels * t, 3,
-                      stride=stride, padding=1, groups=in_channels * t),
-            nn.BatchNorm2d(in_channels * t),
+            nn.Conv2d(hidden_dim, hidden_dim, kernel_size=3, stride=stride,
+                      padding=1, groups=hidden_dim),
+            nn.BatchNorm2d(hidden_dim),
             nn.ReLU6(inplace=True),
 
-            nn.Conv2d(in_channels * t, out_channels, 1),
+            nn.Conv2d(hidden_dim, out_channels, kernel_size=1),
             nn.BatchNorm2d(out_channels)
         )
 
@@ -43,11 +45,11 @@ class LinearBottleNeck(nn.Module):
 
 class MobileNetV2(nn.Module):
 
-    def __init__(self, class_num=100):
+    def __init__(self, class_num=100, input_channels=3):
         super().__init__()
 
         self.pre = nn.Sequential(
-            nn.Conv2d(3, 32, 1, padding=1),
+            nn.Conv2d(input_channels, 32, kernel_size=1, padding=1),
             nn.BatchNorm2d(32),
             nn.ReLU6(inplace=True)
         )
@@ -61,12 +63,12 @@ class MobileNetV2(nn.Module):
         self.stage7 = LinearBottleNeck(160, 320, 1, 6)
 
         self.conv1 = nn.Sequential(
-            nn.Conv2d(320, 1280, 1),
+            nn.Conv2d(320, 1280, kernel_size=1),
             nn.BatchNorm2d(1280),
             nn.ReLU6(inplace=True)
         )
 
-        self.conv2 = nn.Conv2d(1280, class_num, 1)
+        self.conv2 = nn.Conv2d(1280, class_num, kernel_size=1)
 
     def forward(self, x):
         x = self.pre(x)
@@ -81,17 +83,16 @@ class MobileNetV2(nn.Module):
         x = F.adaptive_avg_pool2d(x, 1)
         x = self.conv2(x)
         x = x.view(x.size(0), -1)
-
         return x
 
-    def _make_stage(self, repeat, in_channels, out_channels, stride, t):
+    def _make_stage(self, repeat, in_channels, out_channels, stride, expansion):
 
-        layers = []
-        layers.append(LinearBottleNeck(in_channels, out_channels, stride, t))
+        layers = [LinearBottleNeck(
+            in_channels, out_channels, stride, expansion)]
 
-        while repeat - 1:
-            layers.append(LinearBottleNeck(out_channels, out_channels, 1, t))
-            repeat -= 1
+        for _ in range(repeat - 1):
+            layers.append(LinearBottleNeck(
+                out_channels, out_channels, 1, expansion))
 
         return nn.Sequential(*layers)
 

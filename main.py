@@ -9,7 +9,6 @@ import torch.nn as nn
 import torch.optim as optim
 
 import utils
-import model.net as net
 import data_loader as data_loader
 import model.resnet as resnet
 import model.mobilenetv2 as mobilenet

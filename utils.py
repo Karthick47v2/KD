@@ -5,22 +5,20 @@ import shutil
 import torch
 from torch.optim.lr_scheduler import _LRScheduler
 
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+def loss_kd(outputs, labels, teacher_outputs, params):
+    kl_div = nn.KLDivLoss(reduction='batchmean')(F.log_softmax(outputs/params.temperature, dim=1),
+                                                 F.softmax(teacher_outputs/params.temperature, dim=1)) * (params.temperature ** 2)
+    return (1. - params.alpha) * F.cross_entropy(outputs, labels) + params.alpha * kl_div
+
 
 class Params():
-    """Class that loads hyperparameters from a json file.
-
-    Example:
-    ```
-    params = Params(json_path)
-    print(params.learning_rate)
-    params.learning_rate = 0.5  # change the value of learning_rate in params
-    ```
-    """
-
     def __init__(self, json_path):
         with open(json_path) as f:
-            params = json.load(f)
-            self.__dict__.update(params)
+            self.__dict__.update(json.load(f))
 
     def save(self, json_path):
         with open(json_path, 'w') as f:
@@ -29,27 +27,14 @@ class Params():
     def update(self, json_path):
         """Loads parameters from json file"""
         with open(json_path) as f:
-            params = json.load(f)
-            self.__dict__.update(params)
+            self.__dict__.update(json.load(f))
 
     @property
     def dict(self):
-        """Gives dict-like access to Params instance by `params.dict['learning_rate']"""
         return self.__dict__
 
 
 class RunningAverage():
-    """A simple class that maintains the running average of a quantity
-
-    Example:
-    ```
-    loss_avg = RunningAverage()
-    loss_avg.update(2)
-    loss_avg.update(4)
-    loss_avg() = 3
-    ```
-    """
-
     def __init__(self):
         self.steps = 0
         self.total = 0
@@ -59,11 +44,10 @@ class RunningAverage():
         self.steps += 1
 
     def __call__(self):
-        return self.total/float(self.steps)
+        return self.total / float(self.steps)
 
 
 class AverageMeter(object):
-
     def __init__(self):
         self.reset()
 
@@ -77,28 +61,14 @@ class AverageMeter(object):
         self.val = val
         self.sum += val*n
         self.count += n
-        self.avg = self.sum/self.count
+        self.avg = self.sum / self.count
 
 
 def get_lr(optimizer):
-    for param_group in optimizer.param_groups:
-        return param_group['lr']
+    return optimizer.param_groups[0]['lr']
 
 
 def set_logger(log_path):
-    """Set the logger to log info in terminal and file `log_path`.
-
-    In general, it is useful to have a logger so that every output to the terminal is saved
-    in a permanent file. Here we save it to `model_dir/train.log`.
-
-    Example:
-    ```
-    logging.info("Starting training...")
-    ```
-
-    Args:
-        log_path: (string) where to log
-    """
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
 
@@ -116,12 +86,6 @@ def set_logger(log_path):
 
 
 def save_dict_to_json(d, json_path):
-    """Saves dict of floats in json file
-
-    Args:
-        d: (dict) of float-castable values (np.float, int, float, etc.)
-        json_path: (string) path to json file
-    """
     with open(json_path, 'w') as f:
         # We need to convert the values to float for json (it doesn't accept np.array, np.float, )
         d = {k: float(v) for k, v in d.items()}
@@ -129,39 +93,27 @@ def save_dict_to_json(d, json_path):
 
 
 def save_checkpoint(state, is_best, checkpoint, epoch_checkpoint=False):
-    """Saves model and training parameters at checkpoint + 'last.pth.tar'. If is_best==True, also saves
-    checkpoint + 'best.pth.tar'
-
-    Args:
-        state: (dict) contains model's state_dict, may contain other keys such as epoch, optimizer state_dict
-        is_best: (bool) True if it is the best model seen till now
-        checkpoint: (string) folder where parameters are to be saved
-    """
     filepath = os.path.join(checkpoint, 'last.pth.tar')
+
     if not os.path.exists(checkpoint):
         print("Checkpoint Directory does not exist! Making directory {}".format(checkpoint))
         os.mkdir(checkpoint)
     else:
         print("Checkpoint Directory exists! ")
+
     torch.save(state, filepath)
+
     if is_best:
         shutil.copyfile(filepath, os.path.join(checkpoint, 'best.pth.tar'))
     if epoch_checkpoint == True:
-        epoch_file = str(state['epoch']-1) + '.pth.tar'
+        epoch_file = str(state['epoch'] - 1) + '.pth.tar'
         shutil.copyfile(filepath, os.path.join(checkpoint, epoch_file))
 
 
 def load_checkpoint(checkpoint, model, optimizer=None):
-    """Loads model parameters (state_dict) from file_path. If optimizer is provided, loads state_dict of
-    optimizer assuming it is present in checkpoint.
-
-    Args:
-        checkpoint: (string) filename which needs to be loaded
-        model: (torch.nn.Module) model for which the parameters are loaded
-        optimizer: (torch.optim) optional: resume optimizer from checkpoint
-    """
     if not os.path.exists(checkpoint):
-        raise ("File doesn't exist {}".format(checkpoint))
+        raise Exception("File doesn't exist {}".format(checkpoint))
+
     if torch.cuda.is_available():
         checkpoint = torch.load(checkpoint)
     else:
@@ -178,18 +130,9 @@ def load_checkpoint(checkpoint, model, optimizer=None):
 
 
 class WarmUpLR(_LRScheduler):
-    """warmup_training learning rate scheduler
-    Args:
-        optimizer: optimzier(e.g. SGD)
-        total_iters: totoal_iters of warmup phase
-    """
-
     def __init__(self, optimizer, total_iters, last_epoch=-1):
         self.total_iters = total_iters
         super().__init__(optimizer, last_epoch)
 
     def get_lr(self):
-        """we will use the first m batches, and set the learning
-        rate to base_lr * m / total_iters
-        """
         return [base_lr * self.last_epoch / (self.total_iters + 1e-8) for base_lr in self.base_lrs]

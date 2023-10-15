@@ -1,6 +1,4 @@
 import os
-import time
-import math
 import utils
 from tqdm import tqdm
 import logging
@@ -10,14 +8,17 @@ from tensorboardX import SummaryWriter
 from torch.optim.lr_scheduler import StepLR, MultiStepLR
 
 # KD train and evaluate
+
+
 def train_and_evaluate_kd(model, teacher_model, train_dataloader, val_dataloader, optimizer,
-                       loss_fn_kd, warmup_scheduler, params, args, restore_file=None):
+                          loss_fn_kd, warmup_scheduler, params, args, restore_file=None):
     """
     KD Train the model and evaluate every epoch.
     """
     # reload weights from restore_file if specified
     if restore_file is not None:
-        restore_path = os.path.join(args.model_dir, args.restore_file + '.pth.tar')
+        restore_path = os.path.join(
+            args.model_dir, args.restore_file + '.pth.tar')
         logging.info("Restoring parameters from {}".format(restore_path))
         utils.load_checkpoint(restore_path, model, optimizer)
 
@@ -28,29 +29,32 @@ def train_and_evaluate_kd(model, teacher_model, train_dataloader, val_dataloader
     best_val_acc = 0.0
     teacher_model.eval()
     teacher_acc = evaluate_kd(teacher_model, val_dataloader, params)
-    print(">>>>>>>>>The teacher accuracy: {}>>>>>>>>>".format(teacher_acc['accuracy']))
+    print(">>>>>>>>>The teacher accuracy: {}>>>>>>>>>".format(
+        teacher_acc['accuracy']))
 
     scheduler = MultiStepLR(optimizer, milestones=[60, 120, 160], gamma=0.2)
     for epoch in range(params.num_epochs):
 
         if epoch > 0:   # 0 is the warm up epoch
             scheduler.step()
-        logging.info("Epoch {}/{}, lr:{}".format(epoch + 1, params.num_epochs, optimizer.param_groups[0]['lr']))
+        logging.info("Epoch {}/{}, lr:{}".format(epoch + 1,
+                     params.num_epochs, optimizer.param_groups[0]['lr']))
 
         # KD Train
-        train_acc, train_loss = train_kd(model, teacher_model, optimizer, loss_fn_kd, train_dataloader, warmup_scheduler, params, args, epoch)
+        train_acc, train_loss = train_kd(
+            model, teacher_model, optimizer, loss_fn_kd, train_dataloader, warmup_scheduler, params, args, epoch)
         # Evaluate
         val_metrics = evaluate_kd(model, val_dataloader, params)
 
         val_acc = val_metrics['accuracy']
-        is_best = val_acc>=best_val_acc
+        is_best = val_acc >= best_val_acc
 
         # Save weights
         utils.save_checkpoint({'epoch': epoch + 1,
                                'state_dict': model.state_dict(),
-                               'optim_dict' : optimizer.state_dict()},
-                               is_best=is_best,
-                               checkpoint=args.model_dir)
+                               'optim_dict': optimizer.state_dict()},
+                              is_best=is_best,
+                              checkpoint=args.model_dir)
 
         # If best_eval, best_save_path
         if is_best:
@@ -90,21 +94,24 @@ def train_kd(model, teacher_model, optimizer, loss_fn_kd, dataloader, warmup_sch
     # Use tqdm for progress bar
     with tqdm(total=len(dataloader)) as t:
         for i, (train_batch, labels_batch) in enumerate(dataloader):
-            if epoch<=0:
+            if epoch <= 0:
                 warmup_scheduler.step()
 
             train_batch, labels_batch = train_batch.cuda(), labels_batch.cuda()
             # convert to torch Variables
-            train_batch, labels_batch = Variable(train_batch), Variable(labels_batch)
+            train_batch, labels_batch = Variable(
+                train_batch), Variable(labels_batch)
 
             # compute model output, fetch teacher output, and compute KD loss
             output_batch = model(train_batch)
 
             # get one batch output from teacher model
             output_teacher_batch = teacher_model(train_batch).cuda()
-            output_teacher_batch = Variable(output_teacher_batch, requires_grad=False)
+            output_teacher_batch = Variable(
+                output_teacher_batch, requires_grad=False)
 
-            loss = loss_fn_kd(output_batch, labels_batch, output_teacher_batch, params)
+            loss = loss_fn_kd(output_batch, labels_batch,
+                              output_teacher_batch, params)
 
             # clear previous gradients, compute gradients of all variables wrt loss
             optimizer.zero_grad()
@@ -120,11 +127,13 @@ def train_kd(model, teacher_model, optimizer, loss_fn_kd, dataloader, warmup_sch
             loss_avg.update(loss.data)
             losses.update(loss.item(), train_batch.size(0))
 
-            t.set_postfix(loss='{:05.3f}'.format(loss_avg()), lr='{:05.6f}'.format(optimizer.param_groups[0]['lr']))
+            t.set_postfix(loss='{:05.3f}'.format(
+                loss_avg()), lr='{:05.6f}'.format(optimizer.param_groups[0]['lr']))
             t.update()
 
     acc = 100.*correct/total
-    logging.info("- Train accuracy: {acc:.4f}, training loss: {loss:.4f}".format(acc = acc, loss = losses.avg))
+    logging.info(
+        "- Train accuracy: {acc:.4f}, training loss: {loss:.4f}".format(acc=acc, loss=losses.avg))
     return acc, losses.avg
 
 
@@ -136,7 +145,8 @@ def train_and_evaluate(model, train_dataloader, val_dataloader, optimizer,
     """
     # reload weights from restore_file if specified
     if restore_file is not None:
-        restore_path = os.path.join(args.model_dir, args.restore_file + '.pth.tar')
+        restore_path = os.path.join(
+            args.model_dir, args.restore_file + '.pth.tar')
         logging.info("Restoring parameters from {}".format(restore_path))
         utils.load_checkpoint(restore_path, model, optimizer)
 
@@ -160,23 +170,25 @@ def train_and_evaluate(model, train_dataloader, val_dataloader, optimizer,
             scheduler.step(epoch)
 
         # Run one epoch
-        logging.info("Epoch {}/{}, lr:{}".format(epoch + 1, params.num_epochs, optimizer.param_groups[0]['lr']))
+        logging.info("Epoch {}/{}, lr:{}".format(epoch + 1,
+                     params.num_epochs, optimizer.param_groups[0]['lr']))
 
         # compute number of batches in one epoch (one full pass over the training set)
-        train_acc, train_loss = train(model, optimizer, loss_fn, train_dataloader, params, epoch, warmup_scheduler, args)
+        train_acc, train_loss = train(
+            model, optimizer, loss_fn, train_dataloader, params, epoch, warmup_scheduler, args)
 
         # Evaluate for one epoch on validation set
         val_metrics = evaluate(model, loss_fn, val_dataloader, params, args)
 
         val_acc = val_metrics['accuracy']
-        is_best = val_acc>=best_val_acc
+        is_best = val_acc >= best_val_acc
 
         # Save weights
         utils.save_checkpoint({'epoch': epoch + 1,
                                'state_dict': model.state_dict(),
-                               'optim_dict' : optimizer.state_dict()},
-                                is_best=is_best,
-                                checkpoint=model_dir)
+                               'optim_dict': optimizer.state_dict()},
+                              is_best=is_best,
+                              checkpoint=model_dir)
         # If best_eval, best_save_path
         if is_best:
             logging.info("- Found new best accuracy")
@@ -216,9 +228,10 @@ def train(model, optimizer, loss_fn, dataloader, params, epoch, warmup_scheduler
         for i, (train_batch, labels_batch) in enumerate(dataloader):
 
             train_batch, labels_batch = train_batch.cuda(), labels_batch.cuda()
-            if epoch<=0:
+            if epoch <= 0:
                 warmup_scheduler.step()
-            train_batch, labels_batch = Variable(train_batch), Variable(labels_batch)
+            train_batch, labels_batch = Variable(
+                train_batch), Variable(labels_batch)
 
             optimizer.zero_grad()
             output_batch = model(train_batch)
@@ -237,18 +250,11 @@ def train(model, optimizer, loss_fn, dataloader, params, epoch, warmup_scheduler
             loss_avg.update(loss.data)
             losses.update(loss.data, train_batch.size(0))
 
-            t.set_postfix(loss='{:05.3f}'.format(loss_avg()), lr='{:05.6f}'.format(optimizer.param_groups[0]['lr']))
+            t.set_postfix(loss='{:05.3f}'.format(
+                loss_avg()), lr='{:05.6f}'.format(optimizer.param_groups[0]['lr']))
             t.update()
 
     acc = 100. * correct / total
-    logging.info("- Train accuracy: {acc: .4f}, training loss: {loss: .4f}".format(acc=acc, loss=losses.avg))
+    logging.info(
+        "- Train accuracy: {acc: .4f}, training loss: {loss: .4f}".format(acc=acc, loss=losses.avg))
     return acc, losses.avg
-
-
-
-
-
-
-
-
-

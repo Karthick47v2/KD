@@ -50,7 +50,8 @@ class ShuffleUnit(nn.Module):
                 nn.Conv2d(in_channels, in_channels, 1),
                 nn.BatchNorm2d(in_channels),
                 nn.ReLU(inplace=True),
-                nn.Conv2d(in_channels, in_channels, 3, stride=stride, padding=1, groups=in_channels),
+                nn.Conv2d(in_channels, in_channels, 3, stride=stride,
+                          padding=1, groups=in_channels),
                 nn.BatchNorm2d(in_channels),
                 nn.Conv2d(in_channels, int(out_channels / 2), 1),
                 nn.BatchNorm2d(int(out_channels / 2)),
@@ -58,7 +59,8 @@ class ShuffleUnit(nn.Module):
             )
 
             self.shortcut = nn.Sequential(
-                nn.Conv2d(in_channels, in_channels, 3, stride=stride, padding=1, groups=in_channels),
+                nn.Conv2d(in_channels, in_channels, 3, stride=stride,
+                          padding=1, groups=in_channels),
                 nn.BatchNorm2d(in_channels),
                 nn.Conv2d(in_channels, int(out_channels / 2), 1),
                 nn.BatchNorm2d(int(out_channels / 2)),
@@ -72,7 +74,8 @@ class ShuffleUnit(nn.Module):
                 nn.Conv2d(in_channels, in_channels, 1),
                 nn.BatchNorm2d(in_channels),
                 nn.ReLU(inplace=True),
-                nn.Conv2d(in_channels, in_channels, 3, stride=stride, padding=1, groups=in_channels),
+                nn.Conv2d(in_channels, in_channels, 3, stride=stride,
+                          padding=1, groups=in_channels),
                 nn.BatchNorm2d(in_channels),
                 nn.Conv2d(in_channels, in_channels, 1),
                 nn.BatchNorm2d(in_channels),

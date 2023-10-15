@@ -4,7 +4,6 @@
     https://arxiv.org/abs/1801.04381
 """
 
-import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -19,7 +18,8 @@ class LinearBottleNeck(nn.Module):
             nn.BatchNorm2d(in_channels * t),
             nn.ReLU6(inplace=True),
 
-            nn.Conv2d(in_channels * t, in_channels * t, 3, stride=stride, padding=1, groups=in_channels * t),
+            nn.Conv2d(in_channels * t, in_channels * t, 3,
+                      stride=stride, padding=1, groups=in_channels * t),
             nn.BatchNorm2d(in_channels * t),
             nn.ReLU6(inplace=True),
 
@@ -39,6 +39,7 @@ class LinearBottleNeck(nn.Module):
             residual += x
 
         return residual
+
 
 class MobileNetV2(nn.Module):
 
@@ -93,6 +94,7 @@ class MobileNetV2(nn.Module):
             repeat -= 1
 
         return nn.Sequential(*layers)
+
 
 def mobilenetv2(**kwargs):
     return MobileNetV2(**kwargs)

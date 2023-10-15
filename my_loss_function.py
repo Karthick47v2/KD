@@ -11,10 +11,12 @@ def loss_kd(outputs, labels, teacher_outputs, params):
     T = params.temperature
 
     loss_CE = F.cross_entropy(outputs, labels)
-    D_KL = nn.KLDivLoss()(F.log_softmax(outputs/T, dim=1), F.softmax(teacher_outputs/T, dim=1)) * (T * T)
-    KD_loss =  (1. - alpha)*loss_CE + alpha*D_KL
+    D_KL = nn.KLDivLoss()(F.log_softmax(outputs/T, dim=1),
+                          F.softmax(teacher_outputs/T, dim=1)) * (T * T)
+    KD_loss = (1. - alpha)*loss_CE + alpha*D_KL
 
     return KD_loss
+
 
 def loss_kd_self(outputs, labels, teacher_outputs, params):
     """
@@ -24,8 +26,9 @@ def loss_kd_self(outputs, labels, teacher_outputs, params):
     T = params.temperature
 
     loss_CE = F.cross_entropy(outputs, labels)
-    D_KL = nn.KLDivLoss()(F.log_softmax(outputs/T, dim=1), F.softmax(teacher_outputs/T, dim=1)) * (T * T) * params.multiplier  # multiple is 1.0 in most of cases, some cases are 10 or 50
-    KD_loss =  (1. - alpha)*loss_CE + alpha*D_KL
+    D_KL = nn.KLDivLoss()(F.log_softmax(outputs/T, dim=1), F.softmax(teacher_outputs/T, dim=1)) * \
+        (T * T) * params.multiplier  # multiple is 1.0 in most of cases, some cases are 10 or 50
+    KD_loss = (1. - alpha)*loss_CE + alpha*D_KL
 
     return KD_loss
 
@@ -43,8 +46,9 @@ def loss_kd_regularization(outputs, labels, params):
     teacher_soft = torch.ones_like(outputs).cuda()
     teacher_soft = teacher_soft*(1-correct_prob)/(K-1)  # p^d(k)
     for i in range(outputs.shape[0]):
-        teacher_soft[i ,labels[i]] = correct_prob
-    loss_soft_regu = nn.KLDivLoss()(F.log_softmax(outputs, dim=1), F.softmax(teacher_soft/T, dim=1))*params.multiplier
+        teacher_soft[i, labels[i]] = correct_prob
+    loss_soft_regu = nn.KLDivLoss()(F.log_softmax(outputs, dim=1),
+                                    F.softmax(teacher_soft/T, dim=1))*params.multiplier
 
     KD_loss = (1. - alpha)*loss_CE + alpha*loss_soft_regu
 
@@ -58,8 +62,10 @@ def loss_label_smoothing(outputs, labels):
     alpha = 0.1
     N = outputs.size(0)  # batch_size
     C = outputs.size(1)  # number of classes
-    smoothed_labels = torch.full(size=(N, C), fill_value= alpha / (C - 1)).cuda()
-    smoothed_labels.scatter_(dim=1, index=torch.unsqueeze(labels, dim=1), value=1-alpha)
+    smoothed_labels = torch.full(
+        size=(N, C), fill_value=alpha / (C - 1)).cuda()
+    smoothed_labels.scatter_(
+        dim=1, index=torch.unsqueeze(labels, dim=1), value=1-alpha)
 
     log_prob = torch.nn.functional.log_softmax(outputs, dim=1)
     loss = -torch.sum(log_prob * smoothed_labels) / N

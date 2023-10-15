@@ -10,15 +10,7 @@ import logging
 import os
 import shutil
 import torch
-from collections import OrderedDict
 from torch.optim.lr_scheduler import _LRScheduler
-#import tensorflow as tf
-import numpy as np
-import scipy.misc 
-try:
-    from StringIO import StringIO  # Python 2.7
-except ImportError:
-    from io import BytesIO         # Python 3.x
 
 
 class Params():
@@ -40,7 +32,7 @@ class Params():
     def save(self, json_path):
         with open(json_path, 'w') as f:
             json.dump(self.__dict__, f, indent=4)
-            
+
     def update(self, json_path):
         """Loads parameters from json file"""
         with open(json_path) as f:
@@ -55,7 +47,7 @@ class Params():
 
 class RunningAverage():
     """A simple class that maintains the running average of a quantity
-    
+
     Example:
     ```
     loss_avg = RunningAverage()
@@ -64,16 +56,18 @@ class RunningAverage():
     loss_avg() = 3
     ```
     """
+
     def __init__(self):
         self.steps = 0
         self.total = 0
-    
+
     def update(self, val):
         self.total += val
         self.steps += 1
-    
+
     def __call__(self):
         return self.total/float(self.steps)
+
 
 class AverageMeter(object):
 
@@ -92,9 +86,11 @@ class AverageMeter(object):
         self.count += n
         self.avg = self.sum/self.count
 
+
 def get_lr(optimizer):
     for param_group in optimizer.param_groups:
         return param_group['lr']
+
 
 def set_logger(log_path):
     """Set the logger to log info in terminal and file `log_path`.
@@ -116,7 +112,8 @@ def set_logger(log_path):
     if not logger.handlers:
         # Logging to a file
         file_handler = logging.FileHandler(log_path)
-        file_handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s: %(message)s'))
+        file_handler.setFormatter(logging.Formatter(
+            '%(asctime)s:%(levelname)s: %(message)s'))
         logger.addHandler(file_handler)
 
         # Logging to console
@@ -138,7 +135,7 @@ def save_dict_to_json(d, json_path):
         json.dump(d, f, indent=4)
 
 
-def save_checkpoint(state, is_best, checkpoint, epoch_checkpoint = False):
+def save_checkpoint(state, is_best, checkpoint, epoch_checkpoint=False):
     """Saves model and training parameters at checkpoint + 'last.pth.tar'. If is_best==True, also saves
     checkpoint + 'best.pth.tar'
 
@@ -161,9 +158,6 @@ def save_checkpoint(state, is_best, checkpoint, epoch_checkpoint = False):
         shutil.copyfile(filepath, os.path.join(checkpoint, epoch_file))
 
 
-
-
-
 def load_checkpoint(checkpoint, model, optimizer=None):
     """Loads model parameters (state_dict) from file_path. If optimizer is provided, loads state_dict of
     optimizer assuming it is present in checkpoint.
@@ -174,12 +168,13 @@ def load_checkpoint(checkpoint, model, optimizer=None):
         optimizer: (torch.optim) optional: resume optimizer from checkpoint
     """
     if not os.path.exists(checkpoint):
-        raise("File doesn't exist {}".format(checkpoint))
+        raise ("File doesn't exist {}".format(checkpoint))
     if torch.cuda.is_available():
         checkpoint = torch.load(checkpoint)
     else:
         # this helps avoid errors when loading single-GPU-trained weights onto CPU-model
-        checkpoint = torch.load(checkpoint, map_location=lambda storage, loc: storage)
+        checkpoint = torch.load(
+            checkpoint, map_location=lambda storage, loc: storage)
 
     model.load_state_dict(checkpoint['state_dict'])
 
@@ -187,6 +182,7 @@ def load_checkpoint(checkpoint, model, optimizer=None):
         optimizer.load_state_dict(checkpoint['optim_dict'])
 
     return checkpoint
+
 
 '''
 class Board_Logger(object):
@@ -252,6 +248,7 @@ class Board_Logger(object):
         self.writer.add_summary(summary, step)
         self.writer.flush
 '''
+
 
 class WarmUpLR(_LRScheduler):
     """warmup_training learning rate scheduler

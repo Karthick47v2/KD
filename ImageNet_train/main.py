@@ -24,8 +24,8 @@ from loss_function import loss_soft_regularization, loss_label_smoothing, loss_f
 
 
 model_names = sorted(name for name in models.__dict__
-    if name.islower() and not name.startswith("__")
-    and callable(models.__dict__[name]))
+                     if name.islower() and not name.startswith("__")
+                     and callable(models.__dict__[name]))
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR',
@@ -33,13 +33,13 @@ parser.add_argument('data', metavar='DIR',
 parser.add_argument('-a', '--arch', metavar='ARCH', default='resnet18',
                     choices=model_names,
                     help='model architecture: ' +
-                        ' | '.join(model_names) +
-                        ' (default: resnet18)')
+                    ' | '.join(model_names) +
+                    ' (default: resnet18)')
 parser.add_argument('-at', '--arch_teacher', metavar='ARCH', default='densenet121',
                     choices=model_names,
                     help='model architecture: ' +
-                        ' | '.join(model_names) +
-                        ' (default: densenet121)')
+                    ' | '.join(model_names) +
+                    ' (default: densenet121)')
 parser.add_argument('-j', '--workers', default=16, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=90, type=int, metavar='N',
@@ -83,17 +83,20 @@ parser.add_argument('--multiprocessing-distributed', action='store_true',
                          'N processes per node, which has N GPUs. This is the '
                          'fastest way to use PyTorch for either single node or '
                          'multi node data parallel training')
-parser.add_argument('--alpha', default=0.1, type=float, help="alpha to balance KD loss and cross entropy loss")
+parser.add_argument('--alpha', default=0.1, type=float,
+                    help="alpha to balance KD loss and cross entropy loss")
 parser.add_argument('--T', default=20, type=float, help="Temperature")
-#parser.add_argument('--selfKD', default=1, type=int, help="parameter for self training or normal training")
-#parser.add_argument('--regularization', action='store_true', help='parameter for regularization')
-#parser.add_argument('--smoothing', action='store_true', help='parameter for label smoothing')
-#parser.add_argument('--selfKD', action='store_true', help="parameter for self training or normal training")
+# parser.add_argument('--selfKD', default=1, type=int, help="parameter for self training or normal training")
+# parser.add_argument('--regularization', action='store_true', help='parameter for regularization')
+# parser.add_argument('--smoothing', action='store_true', help='parameter for label smoothing')
+# parser.add_argument('--selfKD', action='store_true', help="parameter for self training or normal training")
 
-parser.add_argument('--regularization', default=0, type=int, help='parameter for regularization')
-parser.add_argument('--smoothing', default=0, type=int, help='parameter for label smoothing')
-parser.add_argument('--KD', default=0, type=int, help="parameter for self training or normal training")
-
+parser.add_argument('--regularization', default=0, type=int,
+                    help='parameter for regularization')
+parser.add_argument('--smoothing', default=0, type=int,
+                    help='parameter for label smoothing')
+parser.add_argument('--KD', default=0, type=int,
+                    help="parameter for self training or normal training")
 
 
 best_acc1 = 0
@@ -101,8 +104,8 @@ args, unparsed = parser.parse_known_args()
 
 
 def main():
-    #args = parser.parse_args()
-    #print(args)
+    # args = parser.parse_args()
+    # print(args)
     print_parameters(args)
     if args.seed is not None:
         random.seed(args.seed)
@@ -126,15 +129,19 @@ def main():
     # tensorboard setting
     if args.KD == 1:
         print(">>>>>>>>>>>>>>>>>KD training, self-training or normal KD !>>>>>>>>>>>>>>>>")
-        log_dir = 'logs/' + str(args.arch) + '/tensorboard_Teacher_' + str(args.arch_teacher) + '_T_' + str(args.T) + '_a_' + str(args.alpha) + '/'
+        log_dir = 'logs/' + str(args.arch) + '/tensorboard_Teacher_' + str(
+            args.arch_teacher) + '_T_' + str(args.T) + '_a_' + str(args.alpha) + '/'
     elif args.regularization == 1:
-        print(">>>>>>>>>>>>>Regularization, Teacher-free knowledge distillation!>>>>>>>>>>>>")
+        print(
+            ">>>>>>>>>>>>>Regularization, Teacher-free knowledge distillation!>>>>>>>>>>>>")
         log_dir = 'logs/' + str(args.arch) + '/tensorboard_regularization/'
     elif args.smoothing == 1:
-        print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Label Smoothing!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+        print(
+            ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Label Smoothing!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
         log_dir = 'logs/' + str(args.arch) + '/tensorboard_LS/'
     else:
-        print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Normal Training>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+        print(
+            ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Normal Training>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
         log_dir = 'logs/' + str(args.arch) + '/tensorboard_normal_train/'
 
     warnings.filterwarnings("ignore")
@@ -148,7 +155,8 @@ def main():
         args.world_size = ngpus_per_node * args.world_size
         # Use torch.multiprocessing.spawn to launch distributed processes: the
         # main_worker process function
-        mp.spawn(main_worker, nprocs=ngpus_per_node, args=(ngpus_per_node, args), writer=writer, log_dir=log_dir)
+        mp.spawn(main_worker, nprocs=ngpus_per_node, args=(
+            ngpus_per_node, args), writer=writer, log_dir=log_dir)
     else:
         # Simply call main_worker function
         main_worker(args.gpu, ngpus_per_node, args, writer, log_dir)
@@ -171,15 +179,14 @@ def main_worker(gpu, ngpus_per_node, args, writer, log_dir):
         dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url,
                                 world_size=args.world_size, rank=args.rank)
 
-
     # create model
     print("=> creating model '{}'".format(args.arch))
     model = models.__dict__[args.arch]()
     print("=> creating teacher model '{}'".format(args.arch))
     teacher_model = models.__dict__[args.arch_teacher](pretrained=True)
     # Use the following lines if you load a pre-trained model by yourself
-    #teacher_file = 'pretrained_model/' + 'teacher_model_'+ str(args.arch)+'.pth'
-    #teacher_model = torch.load(teacher_file)
+    # teacher_file = 'pretrained_model/' + 'teacher_model_'+ str(args.arch)+'.pth'
+    # teacher_model = torch.load(teacher_file)
 
     if args.distributed:
         # For multiprocessing distributed, DistributedDataParallel constructor
@@ -193,16 +200,20 @@ def main_worker(gpu, ngpus_per_node, args, writer, log_dir):
             # DistributedDataParallel, we need to divide the batch size
             # ourselves based on the total number of GPUs we have
             args.batch_size = int(args.batch_size / ngpus_per_node)
-            args.workers = int((args.workers + ngpus_per_node - 1) / ngpus_per_node)
-            model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
-            teacher_model = torch.nn.parallel.DistributedDataParallel(teacher_model, device_ids=[args.gpu])
+            args.workers = int(
+                (args.workers + ngpus_per_node - 1) / ngpus_per_node)
+            model = torch.nn.parallel.DistributedDataParallel(
+                model, device_ids=[args.gpu])
+            teacher_model = torch.nn.parallel.DistributedDataParallel(
+                teacher_model, device_ids=[args.gpu])
         else:
             model.cuda()
             teacher_model.cuda()
             # DistributedDataParallel will divide and allocate batch_size to all
             # available GPUs if device_ids are not set
             model = torch.nn.parallel.DistributedDataParallel(model)
-            teacher_model = torch.nn.parallel.DistributedDataParallel(teacher_model)
+            teacher_model = torch.nn.parallel.DistributedDataParallel(
+                teacher_model)
 
     elif args.gpu is not None:
         torch.cuda.set_device(args.gpu)
@@ -213,7 +224,8 @@ def main_worker(gpu, ngpus_per_node, args, writer, log_dir):
         if args.arch.startswith('alexnet') or args.arch.startswith('vgg'):
             model.features = torch.nn.DataParallel(model.features)
             model.cuda()
-            teacher_model.features = torch.nn.DataParallel(teacher_model.features)
+            teacher_model.features = torch.nn.DataParallel(
+                teacher_model.features)
             teacher_model.cuda()
         else:
             model = torch.nn.DataParallel(model).cuda()
@@ -261,12 +273,14 @@ def main_worker(gpu, ngpus_per_node, args, writer, log_dir):
         ]))
 
     if args.distributed:
-        train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
+        train_sampler = torch.utils.data.distributed.DistributedSampler(
+            train_dataset)
     else:
         train_sampler = None
 
     train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=args.batch_size, shuffle=(train_sampler is None),
+        train_dataset, batch_size=args.batch_size, shuffle=(
+            train_sampler is None),
         num_workers=args.workers, pin_memory=True, sampler=train_sampler)
 
     val_loader = torch.utils.data.DataLoader(
@@ -287,8 +301,10 @@ def main_worker(gpu, ngpus_per_node, args, writer, log_dir):
     scheduler = MultiStepLR(optimizer, milestones=[30, 60, 80], gamma=0.1)
 
     # Test the accuracy of teacher
-    acc1, acc5, test_loss = validate(val_loader, teacher_model, criterion, args)
-    print(">>>>>>>>>>>>>>>The teacher accuracy, top1:{}, top5:{}>>>>>>>>>>>>".format(acc1, acc5))
+    acc1, acc5, test_loss = validate(
+        val_loader, teacher_model, criterion, args)
+    print(">>>>>>>>>>>>>>>The teacher accuracy, top1:{}, top5:{}>>>>>>>>>>>>".format(
+        acc1, acc5))
 
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
@@ -298,7 +314,8 @@ def main_worker(gpu, ngpus_per_node, args, writer, log_dir):
         scheduler.step(epoch)
 
         # train for one epoch
-        train_acc1, train_acc5, train_loss_CE = train(train_loader, model, teacher_model, criterion, optimizer, epoch, args)
+        train_acc1, train_acc5, train_loss_CE = train(
+            train_loader, model, teacher_model, criterion, optimizer, epoch, args)
 
         # evaluate on validation set
         acc1, acc5, test_loss = validate(val_loader, model, criterion, args)
@@ -308,14 +325,14 @@ def main_worker(gpu, ngpus_per_node, args, writer, log_dir):
         best_acc1 = max(acc1, best_acc1)
 
         if not args.multiprocessing_distributed or (args.multiprocessing_distributed
-                and args.rank % ngpus_per_node == 0):
+                                                    and args.rank % ngpus_per_node == 0):
             save_checkpoint({
                 'epoch': epoch + 1,
                 'arch': args.arch,
                 'state_dict': model.state_dict(),
                 'best_acc1': best_acc1,
-                'optimizer' : optimizer.state_dict(),
-            }, is_best, dir = log_dir)
+                'optimizer': optimizer.state_dict(),
+            }, is_best, dir=log_dir)
 
         # Tensorboard
         writer.add_scalar('Train_acc_top1', train_acc1, epoch)
@@ -324,7 +341,7 @@ def main_worker(gpu, ngpus_per_node, args, writer, log_dir):
         writer.add_scalar('Test_acc_top1', acc1, epoch)
         writer.add_scalar('Test_acc_top5', acc5, epoch)
         writer.add_scalar('Test_loss_CE', test_loss, epoch)
-            # export scalar data to JSON for external processing
+        # export scalar data to JSON for external processing
     writer.close()
 
 
@@ -360,7 +377,8 @@ def train(train_loader, model, teacher_model, criterion, optimizer, epoch, args)
 
         if args.KD == 1:
             teacher_output = teacher_model(images)
-            loss = loss_fn_kd(output, target, teacher_output, args.alpha, args.T)
+            loss = loss_fn_kd(output, target, teacher_output,
+                              args.alpha, args.T)
         elif args.regularization == 1:
             loss = loss_soft_regularization(output, target)
         elif args.smoothing == 1:
@@ -444,6 +462,7 @@ def save_checkpoint(state, is_best, dir, filename='checkpoint.pth.tar'):
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
+
     def __init__(self, name, fmt=':f'):
         self.name = name
         self.fmt = fmt
@@ -506,9 +525,11 @@ def accuracy(output, target, topk=(1,)):
             res.append(correct_k.mul_(100.0 / batch_size))
         return res
 
+
 def print_parameters(argv):
     for arg in vars(argv):
         print(arg, getattr(argv, arg))
+
 
 if __name__ == '__main__':
     main()

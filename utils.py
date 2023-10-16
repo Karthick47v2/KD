@@ -10,9 +10,9 @@ import torch.nn.functional as F
 
 
 def loss_kd(outputs, labels, teacher_outputs, params):
-    kl_div = nn.KLDivLoss(reduction='batchmean')(F.log_softmax(outputs/params.temperature, dim=1),
-                                                 F.softmax(teacher_outputs/params.temperature, dim=1)) * (params.temperature ** 2)
-    return (1. - params.alpha) * F.cross_entropy(outputs, labels) + params.alpha * kl_div
+    kl_div = nn.KLDivLoss(reduction='batchmean')(F.log_softmax(outputs/params['temperature'], dim=1),
+                                                 F.softmax(teacher_outputs/params['temperature'], dim=1)) * (params['temperature'] ** 2)
+    return (1. - params['alpha']) * F.cross_entropy(outputs, labels) + params['alpha'] * kl_div
 
 
 def args_to_dict(model_dir):

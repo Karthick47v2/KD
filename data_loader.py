@@ -13,7 +13,7 @@ def fetch_dataloader(types, params):
 
     data_folder = 'data'
 
-    if params.augmentation == "yes":
+    if params['augmentation'] == "yes":
         train_transformer = transforms.Compose([
             transforms.RandomCrop(32, padding=4),
             transforms.RandomHorizontalFlip(),
@@ -32,10 +32,10 @@ def fetch_dataloader(types, params):
         transforms.Normalize(normalize_mean, normalize_std)
     ])
 
-    if params.dataset == 'cifar10':
+    if params['dataset'] == 'cifar10':
         dataset_path = os.path.join(data_folder, 'data-cifar10')
         dataset_class = torchvision.datasets.CIFAR10
-    elif params.dataset == 'cifar100':
+    elif params['dataset'] == 'cifar100':
         dataset_path = os.path.join(data_folder, 'data-cifar100')
         dataset_class = torchvision.datasets.CIFAR100
 
@@ -44,7 +44,7 @@ def fetch_dataloader(types, params):
     devset = dataset_class(root=dataset_path, train=False,
                            download=True, transform=dev_transformer)
 
-    if params.dataset == 'tiny_imagenet':
+    if params['dataset'] == 'tiny_imagenet':
         data_dir = os.path.join(data_folder, 'tiny-imagenet-200')
         data_transforms = {
             'train': transforms.Compose([
@@ -68,8 +68,8 @@ def fetch_dataloader(types, params):
             test_dir, data_transforms['val'])
 
     trainloader = torch.utils.data.DataLoader(
-        trainset, batch_size=params.batch_size, shuffle=True, num_workers=params.num_workers)
+        trainset, batch_size=params['batch_size'], shuffle=True, num_workers=params['num_workers'])
     devloader = torch.utils.data.DataLoader(
-        devset, batch_size=params.batch_size, shuffle=False, num_workers=params.num_workers)
+        devset, batch_size=params['batch_size'], shuffle=False, num_workers=params['num_workers'])
 
     return trainloader if types == 'train' else devloader

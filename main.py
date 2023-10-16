@@ -44,7 +44,7 @@ def main():
         "resnet152": resnet.ResNet152
     }
 
-    if "distill" in params.model_version:
+    if "distill" in params['model_version']:
         logging.info("KD Training...")
 
         student_mapping = {
@@ -54,16 +54,16 @@ def main():
             "resnet50_distill": resnet.ResNet50
         }
 
-        print(f'Student model: {params.model_version}')
-        model = student_mapping.get(params.model_version)(
+        print(f'Student model: {params["model_version"]}')
+        model = student_mapping.get(params['model_version'])(
             num_classes=args.num_class).cuda()
 
         print(f'Teacher model: {params.teacher}')
-        teacher_model = teacher_mapping.get(params.model_version)(
+        teacher_model = teacher_mapping.get(params['model_version'])(
             num_classes=args.num_class).cuda()
-        teacher_checkpoint = f'experiments/pretrained_teacher_models/base_{params.teacher}/best.pth.tar'
+        teacher_checkpoint = f'experiments/pretrained_teacher_models/base_{params['teacher']}/best.pth.tar'
 
-        optimizer = torch.optim.SGD(model.parameters(), lr=params.learning_rate * (params.batch_size / 128), momentum=0.9,
+        optimizer = torch.optim.SGD(model.parameters(), lr=params['learning_rate'] * (params['batch_size'] / 128), momentum=0.9,
                                     weight_decay=5e-4)
 
         iter_per_epoch = len(train_dl)
@@ -72,25 +72,25 @@ def main():
 
         utils.load_checkpoint(teacher_checkpoint, teacher_model)
 
-        logging.info(f'Starting training for {params.num_epochs} epoch(s)')
+        logging.info(f'Starting training for {params["num_epochs"]} epoch(s)')
         train_and_evaluate_kd(model, teacher_model, train_dl, dev_dl, optimizer, utils.loss_kd,
                               warmup_scheduler, params, args)
 
     else:
         logging.info("Normal Training...")
 
-        print(f'Model: {params.model_version}')
-        model = teacher_mapping.get(params.model_version)(
+        print(f'Model: {params["model_version"]}')
+        model = teacher_mapping.get(params['model_version'])(
             num_classes=args.num_class).cuda()
 
-        optimizer = torch.optim.SGD(model.parameters(), lr=params.learning_rate * (params.batch_size / 128), momentum=0.9,
+        optimizer = torch.optim.SGD(model.parameters(), lr=params['learning_rate'] * (params['batch_size'] / 128), momentum=0.9,
                                     weight_decay=5e-4)
 
         iter_per_epoch = len(train_dl)
         warmup_scheduler = utils.WarmUpLR(
             optimizer, iter_per_epoch * args.warm)
 
-        logging.info(f'Starting training for {params.num_epochs} epoch(s)')
+        logging.info(f'Starting training for {params["num_epochs"]} epoch(s)')
         train_and_evaluate(model, train_dl, dev_dl, optimizer, torch.nn.CrossEntropyLoss(), params,
                            args.model_dir, warmup_scheduler, args)
 

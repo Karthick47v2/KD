@@ -22,11 +22,11 @@ def train_and_evaluate_kd(model, teacher_model, train_dataloader, val_dataloader
         f'>>>>>>>>>The teacher accuracy: {teacher_acc["accuracy"]}>>>>>>>>>')
 
     scheduler = MultiStepLR(optimizer, milestones=[60, 120, 160], gamma=0.2)
-    for epoch in range(params.num_epochs):
+    for epoch in range(params['num_epochs']):
         if epoch > 0:   # 0 - warm up epoch
             scheduler.step()
         logging.info(
-            f'Epoch {epoch + 1}/{params.num_epochs}, lr:{optimizer.param_groups[0]["lr"]}')
+            f'Epoch {epoch + 1}/{params["num_epochs"]}, lr:{optimizer.param_groups[0]["lr"]}')
 
         train_acc, train_loss = train_kd(
             model, teacher_model, optimizer, loss_fn_kd, train_dataloader, warmup_scheduler, params, epoch)
@@ -119,12 +119,12 @@ def train_and_evaluate(model, train_dataloader, val_dataloader, optimizer,
 
     scheduler = MultiStepLR(optimizer, milestones=[60, 120, 160], gamma=0.2)
 
-    for epoch in range(params.num_epochs):
+    for epoch in range(params['num_epochs']):
         if epoch > 0:   # 0 - warm up epoch
             scheduler.step(epoch)
 
         logging.info(
-            f'Epoch {epoch + 1}/{params.num_epochs}, lr:{optimizer.param_groups[0]["lr"]}')
+            f'Epoch {epoch + 1}/{params["num_epochs"]}, lr:{optimizer.param_groups[0]["lr"]}')
 
         train_acc, train_loss = train(
             model, optimizer, loss_fn, train_dataloader, epoch, warmup_scheduler)

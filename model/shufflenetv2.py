@@ -101,7 +101,7 @@ class ShuffleUnit(nn.Module):
 
 class ShuffleNetV2(nn.Module):
 
-    def __init__(self, ratio=1, class_num=100):
+    def __init__(self, ratio=1, num_classes=100):
         super().__init__()
         if ratio == 0.5:
             out_channels = [48, 96, 192, 1024]
@@ -128,7 +128,7 @@ class ShuffleNetV2(nn.Module):
             nn.ReLU(inplace=True)
         )
 
-        self.fc = nn.Linear(out_channels[3], class_num)
+        self.fc = nn.Linear(out_channels[3], num_classes)
 
     def forward(self, x):
         x = self.pre(x)

@@ -15,23 +15,13 @@ def loss_kd(outputs, labels, teacher_outputs, params):
     return (1. - params.alpha) * F.cross_entropy(outputs, labels) + params.alpha * kl_div
 
 
-class Params():
-    def __init__(self, json_path):
-        with open(json_path) as f:
-            self.__dict__.update(json.load(f))
+def args_to_dict(model_dir):
+    json_path = os.path.join(model_dir, 'params.json')
+    assert os.path.isfile(
+        json_path), "No json configuration file found at {}".format(json_path)
 
-    def save(self, json_path):
-        with open(json_path, 'w') as f:
-            json.dump(self.__dict__, f, indent=4)
-
-    def update(self, json_path):
-        """Loads parameters from json file"""
-        with open(json_path) as f:
-            self.__dict__.update(json.load(f))
-
-    @property
-    def dict(self):
-        return self.__dict__
+    with open(json_path, 'r') as json_file:
+        return json.load(json_file)
 
 
 class RunningAverage():
@@ -68,13 +58,14 @@ def get_lr(optimizer):
     return optimizer.param_groups[0]['lr']
 
 
-def set_logger(log_path):
+def set_logger(model_dir):
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
 
     if not logger.handlers:
         # Logging to a file
-        file_handler = logging.FileHandler(log_path)
+        file_handler = logging.FileHandler(
+            os.path.join(model_dir, 'train.log'))
         file_handler.setFormatter(logging.Formatter(
             '%(asctime)s:%(levelname)s: %(message)s'))
         logger.addHandler(file_handler)
@@ -96,10 +87,7 @@ def save_checkpoint(state, is_best, checkpoint, epoch_checkpoint=False):
     filepath = os.path.join(checkpoint, 'last.pth.tar')
 
     if not os.path.exists(checkpoint):
-        print("Checkpoint Directory does not exist! Making directory {}".format(checkpoint))
         os.mkdir(checkpoint)
-    else:
-        print("Checkpoint Directory exists! ")
 
     torch.save(state, filepath)
 
@@ -112,7 +100,7 @@ def save_checkpoint(state, is_best, checkpoint, epoch_checkpoint=False):
 
 def load_checkpoint(checkpoint, model, optimizer=None):
     if not os.path.exists(checkpoint):
-        raise Exception("File doesn't exist {}".format(checkpoint))
+        raise FileNotFoundError(f'File doesn\'t exist {checkpoint}')
 
     if torch.cuda.is_available():
         checkpoint = torch.load(checkpoint)

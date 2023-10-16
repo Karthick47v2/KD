@@ -17,43 +17,37 @@ def train_and_evaluate_kd(model, teacher_model, train_dataloader, val_dataloader
     best_val_acc = 0.0
     teacher_model.eval()
     teacher_acc = evaluate(teacher_model, loss_fn_kd, val_dataloader, kd=True)
-    print(">>>>>>>>>The teacher accuracy: {}>>>>>>>>>".format(
-        teacher_acc['accuracy']))
+
+    logging.info(
+        f'>>>>>>>>>The teacher accuracy: {teacher_acc["accuracy"]}>>>>>>>>>')
 
     scheduler = MultiStepLR(optimizer, milestones=[60, 120, 160], gamma=0.2)
     for epoch in range(params.num_epochs):
-        if epoch > 0:   # 0 is the warm up epoch
+        if epoch > 0:   # 0 - warm up epoch
             scheduler.step()
-        logging.info("Epoch {}/{}, lr:{}".format(epoch + 1,
-                     params.num_epochs, optimizer.param_groups[0]['lr']))
+        logging.info(
+            f'Epoch {epoch + 1}/{params.num_epochs}, lr:{optimizer.param_groups[0]["lr"]}')
 
-        # KD Train
         train_acc, train_loss = train_kd(
             model, teacher_model, optimizer, loss_fn_kd, train_dataloader, warmup_scheduler, params, epoch)
-        # Evaluate
         val_metrics = evaluate(model, loss_fn_kd, val_dataloader, kd=True)
 
         val_acc = val_metrics['accuracy']
         is_best = val_acc >= best_val_acc
 
-        # Save weights
         utils.save_checkpoint({'epoch': epoch + 1,
                                'state_dict': model.state_dict(),
                                'optim_dict': optimizer.state_dict()},
                               is_best=is_best,
                               checkpoint=args.model_dir)
 
-        # If best_eval, best_save_path
         if is_best:
-            logging.info("- Found new best accuracy")
             best_val_acc = val_acc
 
-            # Save best val metrics in a json file in the model directory
             file_name = "eval_best_result.json"
             best_json_path = os.path.join(args.model_dir, file_name)
             utils.save_dict_to_json(val_metrics, best_json_path)
 
-        # Save latest val metrics in a json file in the model directory
         last_json_path = os.path.join(args.model_dir, "eval_last_result.json")
         utils.save_dict_to_json(val_metrics, last_json_path)
 
@@ -62,11 +56,9 @@ def train_and_evaluate_kd(model, teacher_model, train_dataloader, val_dataloader
         writer.add_scalar('Train_loss', train_loss, epoch)
         writer.add_scalar('Test_accuracy', val_metrics['accuracy'], epoch)
         writer.add_scalar('Test_loss', val_metrics['loss'], epoch)
-        # export scalar data to JSON for external processing
     writer.close()
 
 
-# Defining train_kd functions
 def train_kd(model, teacher_model, optimizer, loss_fn_kd, dataloader, warmup_scheduler, params, epoch):
     model.train()
     teacher_model.eval()
@@ -112,16 +104,14 @@ def train_kd(model, teacher_model, optimizer, loss_fn_kd, dataloader, warmup_sch
                 loss_avg()), lr='{:05.6f}'.format(optimizer.param_groups[0]['lr']))
             t.update()
 
-    acc = 100.*correct/total
+    acc = 100. * correct/total
     logging.info(
-        "- Train accuracy: {acc:.4f}, training loss: {loss:.4f}".format(acc=acc, loss=losses.avg))
+        '- Train accuracy: {acc:.4f}, training loss: {loss:.4f}'.format(acc=acc, loss=losses.avg))
     return acc, losses.avg
 
 
 def train_and_evaluate(model, train_dataloader, val_dataloader, optimizer,
                        loss_fn, params, model_dir, warmup_scheduler, args):
-
-    # dir setting, tensorboard events will save in the dirctory
     log_dir = os.path.join(args.model_dir, 'base_train')
     writer = SummaryWriter(log_dir=log_dir)
 
@@ -130,11 +120,11 @@ def train_and_evaluate(model, train_dataloader, val_dataloader, optimizer,
     scheduler = MultiStepLR(optimizer, milestones=[60, 120, 160], gamma=0.2)
 
     for epoch in range(params.num_epochs):
-        if epoch > 0:   # 1 is the warm up epoch
+        if epoch > 0:   # 0 - warm up epoch
             scheduler.step(epoch)
 
-        logging.info("Epoch {}/{}, lr:{}".format(epoch + 1,
-                     params.num_epochs, optimizer.param_groups[0]['lr']))
+        logging.info(
+            f'Epoch {epoch + 1}/{params.num_epochs}, lr:{optimizer.param_groups[0]["lr"]}')
 
         train_acc, train_loss = train(
             model, optimizer, loss_fn, train_dataloader, epoch, warmup_scheduler)
@@ -151,7 +141,6 @@ def train_and_evaluate(model, train_dataloader, val_dataloader, optimizer,
                               checkpoint=model_dir)
 
         if is_best:
-            logging.info("- Found new best accuracy")
             best_val_acc = val_acc
             best_json_path = os.path.join(model_dir, "eval_best_results.json")
             utils.save_dict_to_json(val_metrics, best_json_path)
@@ -202,5 +191,5 @@ def train(model, optimizer, loss_fn, dataloader, epoch, warmup_scheduler):
 
     acc = 100. * correct / total
     logging.info(
-        "- Train accuracy: {acc: .4f}, training loss: {loss: .4f}".format(acc=acc, loss=losses.avg))
+        '- Train accuracy: {acc: .4f}, training loss: {loss: .4f}'.format(acc=acc, loss=losses.avg))
     return acc, losses.avg

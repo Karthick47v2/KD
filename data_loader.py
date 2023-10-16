@@ -72,7 +72,4 @@ def fetch_dataloader(types, params):
     devloader = torch.utils.data.DataLoader(
         devset, batch_size=params.batch_size, shuffle=False, num_workers=params.num_workers)
 
-    if types == 'train':
-        return trainloader
-    else:
-        return devloader
+    return trainloader if types == 'train' else devloader

@@ -45,7 +45,7 @@ class LinearBottleNeck(nn.Module):
 
 class MobileNetV2(nn.Module):
 
-    def __init__(self, class_num=100, input_channels=3):
+    def __init__(self, num_classes=100, input_channels=3):
         super().__init__()
 
         self.pre = nn.Sequential(
@@ -68,7 +68,7 @@ class MobileNetV2(nn.Module):
             nn.ReLU6(inplace=True)
         )
 
-        self.conv2 = nn.Conv2d(1280, class_num, kernel_size=1)
+        self.conv2 = nn.Conv2d(1280, num_classes, kernel_size=1)
 
     def forward(self, x):
         x = self.pre(x)

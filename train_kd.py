@@ -1,9 +1,9 @@
 import os
-
+import torch
 import utils
 from tqdm import tqdm
 import logging
-from evaluate import evaluate
+
 from tensorboardX import SummaryWriter
 from torch.optim.lr_scheduler import MultiStepLR
 
@@ -76,9 +76,10 @@ def train_kd(model, teacher_model, optimizer, loss_fn_kd, dataloader, warmup_sch
             output_batch = model(train_batch)
 
             # get one batch output from teacher model
-            output_teacher_batch = teacher_model(train_batch).cuda()
-            output_teacher_batch = Variable(
-                output_teacher_batch, requires_grad=False)
+            with torch.no_grad():
+                output_teacher_batch = teacher_model(train_batch).cuda()
+                _, preds = output_batch.max(1)
+                print(utils.calc_cm(labels_batch, preds))
 
             loss = loss_fn_kd(output_batch, labels_batch,
                               output_teacher_batch, params)
@@ -185,3 +186,33 @@ def train(model, optimizer, loss_fn, dataloader, epoch, warmup_scheduler):
     logging.info(
         '- Train accuracy: {acc: .4f}, training loss: {loss: .4f}'.format(acc=acc, loss=losses.avg))
     return acc, losses.avg
+
+
+def evaluate(model, loss_fn, dataloader, kd=False):
+    model.eval()
+    losses = utils.AverageMeter()
+    total = 0
+    correct = 0
+
+    with torch.no_grad():
+        for data_batch, labels_batch in dataloader:
+            data_batch, labels_batch = data_batch.cuda(), labels_batch.cuda()
+
+            output_batch = model(data_batch)
+
+            # loss is not needed in KD mode - just to speed up op
+            if not kd:
+                losses.update(loss_fn(output_batch, labels_batch).data,
+                              data_batch.size(0))
+
+            _, predicted = output_batch.max(1)
+            total += labels_batch.size(0)
+            correct += predicted.eq(labels_batch).sum().item()
+
+    loss_avg = losses.avg
+    acc = 100. * correct / total
+
+    logging.info(
+        '- Eval metrics, acc:{acc:.4f}, loss: {loss_avg:.4f}'.format(acc=acc, loss_avg=loss_avg))
+
+    return {'accuracy': acc, 'loss': loss_avg}

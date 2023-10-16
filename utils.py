@@ -8,6 +8,12 @@ from torch.optim.lr_scheduler import _LRScheduler
 import torch.nn as nn
 import torch.nn.functional as F
 
+from sklearn.metrics import confusion_matrix
+
+
+def calc_cm(y_true, y_pred):
+    return confusion_matrix(y_true, y_pred)
+
 
 def loss_kd(outputs, labels, teacher_outputs, params):
     kl_div = nn.KLDivLoss(reduction='batchmean')(F.log_softmax(outputs/params['temperature'], dim=1),

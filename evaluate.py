@@ -1,6 +1,4 @@
 import logging
-
-from torch.autograd import Variable
 import utils
 
 
@@ -12,7 +10,6 @@ def evaluate(model, loss_fn, dataloader, kd=False):
 
     for data_batch, labels_batch in dataloader:
         data_batch, labels_batch = data_batch.cuda(), labels_batch.cuda()
-        data_batch, labels_batch = Variable(data_batch), Variable(labels_batch)
 
         # Compute model output
         output_batch = model(data_batch)

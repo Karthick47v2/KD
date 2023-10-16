@@ -3,7 +3,6 @@ import os
 import utils
 from tqdm import tqdm
 import logging
-from torch.autograd import Variable
 from evaluate import evaluate
 from tensorboardX import SummaryWriter
 from torch.optim.lr_scheduler import MultiStepLR
@@ -43,7 +42,6 @@ def train_and_evaluate_kd(model, teacher_model, train_dataloader, val_dataloader
 
         if is_best:
             best_val_acc = val_acc
-
             file_name = "eval_best_result.json"
             best_json_path = os.path.join(args.model_dir, file_name)
             utils.save_dict_to_json(val_metrics, best_json_path)
@@ -73,9 +71,6 @@ def train_kd(model, teacher_model, optimizer, loss_fn_kd, dataloader, warmup_sch
                 warmup_scheduler.step()
 
             train_batch, labels_batch = train_batch.cuda(), labels_batch.cuda()
-
-            train_batch, labels_batch = Variable(
-                train_batch), Variable(labels_batch)
 
             # compute model output, fetch teacher output, and compute KD loss
             output_batch = model(train_batch)
@@ -168,9 +163,6 @@ def train(model, optimizer, loss_fn, dataloader, epoch, warmup_scheduler):
             train_batch, labels_batch = train_batch.cuda(), labels_batch.cuda()
             if epoch <= 0:
                 warmup_scheduler.step()
-
-            train_batch, labels_batch = Variable(
-                train_batch), Variable(labels_batch)
 
             optimizer.zero_grad()
             output_batch = model(train_batch)

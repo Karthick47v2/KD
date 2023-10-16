@@ -58,10 +58,10 @@ def main():
         model = student_mapping.get(params['model_version'])(
             num_classes=args.num_class).cuda()
 
-        print(f'Teacher model: {params.teacher}')
-        teacher_model = teacher_mapping.get(params['model_version'])(
+        print(f'Teacher model: {params["teacher"]}')
+        teacher_model = teacher_mapping.get(params['teacher'])(
             num_classes=args.num_class).cuda()
-        teacher_checkpoint = f'experiments/pretrained_teacher_models/base_{params['teacher']}/best.pth.tar'
+        teacher_checkpoint = f'experiments/pretrained_teacher_models/base_{params["teacher"]}/best.pth.tar'
 
         optimizer = torch.optim.SGD(model.parameters(), lr=params['learning_rate'] * (params['batch_size'] / 128), momentum=0.9,
                                     weight_decay=5e-4)

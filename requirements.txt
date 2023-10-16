@@ -1,4 +1,5 @@
 numpy
 tensorboardX
 torch
+torchvision
 tqdm

@@ -7,7 +7,7 @@ import numpy as np
 
 import utils
 import data_loader as data_loader
-from train_kd import train_and_evaluate, train_and_evaluate_kd
+from train_kd import train_and_evaluate, train_and_evaluate_kd, evaluate
 from model import resnet, mobilenetv2, shufflenetv2
 
 random.seed(230)
@@ -35,6 +35,8 @@ def main():
     train_dl = data_loader.fetch_dataloader('train', params)
     dev_dl = data_loader.fetch_dataloader('dev', params)
 
+    device = 'mps'
+
     teacher_mapping = {
         "mobilenet_v2": mobilenetv2.mobilenetv2,
         "shufflenet_v2": shufflenetv2.shufflenetv2,
@@ -56,11 +58,11 @@ def main():
 
         print(f'Student model: {params["model_version"]}')
         model = student_mapping.get(params['model_version'])(
-            num_classes=args.num_class).cuda()
+            num_classes=args.num_class).to(device)
 
         print(f'Teacher model: {params["teacher"]}')
         teacher_model = teacher_mapping.get(params['teacher'])(
-            num_classes=args.num_class).cuda()
+            num_classes=args.num_class).to(device)
         teacher_checkpoint = f'experiments/pretrained_teacher_models/base_{params["teacher"]}/best.pth.tar'
 
         optimizer = torch.optim.SGD(model.parameters(), lr=params['learning_rate'] * (params['batch_size'] / 128), momentum=0.9,
@@ -76,12 +78,23 @@ def main():
         train_and_evaluate_kd(model, teacher_model, train_dl, dev_dl, optimizer, utils.loss_kd,
                               warmup_scheduler, params, args)
 
+        # utils.load_checkpoint(
+        #     f'experiments/kd_experiments/{params["model_version"]}/resnet18_teacher/best.pth.tar', model)
+        # _, labels, preds = evaluate(model, utils.loss_kd, dev_dl, kd=True)
+        # np.savetxt('labeled_trained_student_confusion_matrix.txt',
+        #            utils.calc_cm(labels, preds, [x for x in range(0, 100)]), fmt='%d')
+
+        # _, labels, preds = evaluate(
+        #     teacher_model, utils.loss_kd, dev_dl, kd=True)
+        # np.savetxt('labeled_trained_teacher_confusion_matrix.txt',
+        #            utils.calc_cm(labels, preds, [x for x in range(0, 100)]), fmt='%d')
+
     else:
         logging.info("Normal Training...")
 
         print(f'Model: {params["model_version"]}')
         model = teacher_mapping.get(params['model_version'])(
-            num_classes=args.num_class).cuda()
+            num_classes=args.num_class).to(device)
 
         optimizer = torch.optim.SGD(model.parameters(), lr=params['learning_rate'] * (params['batch_size'] / 128), momentum=0.9,
                                     weight_decay=5e-4)

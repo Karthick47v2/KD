@@ -11,8 +11,8 @@ import torch.nn.functional as F
 from sklearn.metrics import confusion_matrix
 
 
-def calc_cm(y_true, y_pred):
-    return confusion_matrix(y_true, y_pred)
+def calc_cm(y_true, y_pred, labels):
+    return confusion_matrix(y_true, y_pred, labels=labels)
 
 
 def loss_kd(outputs, labels, teacher_outputs, params):

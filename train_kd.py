@@ -4,8 +4,13 @@ import utils
 from tqdm import tqdm
 import logging
 
+import numpy as np
+
 from tensorboardX import SummaryWriter
 from torch.optim.lr_scheduler import MultiStepLR
+
+
+device = 'mps'
 
 
 def train_and_evaluate_kd(model, teacher_model, train_dataloader, val_dataloader, optimizer,
@@ -15,10 +20,12 @@ def train_and_evaluate_kd(model, teacher_model, train_dataloader, val_dataloader
 
     best_val_acc = 0.0
     teacher_model.eval()
-    teacher_acc = evaluate(teacher_model, loss_fn_kd, val_dataloader, kd=True)
+    # teacher_acc = evaluate(teacher_model, loss_fn_kd, val_dataloader, kd=True)
 
-    logging.info(
-        f'>>>>>>>>>The teacher accuracy: {teacher_acc["accuracy"]}>>>>>>>>>')
+    # logging.info(
+    #     f'>>>>>>>>>The teacher accuracy: {teacher_acc["accuracy"]}>>>>>>>>>')
+
+    cm = np.ones((args.num_class, args.num_class))
 
     scheduler = MultiStepLR(optimizer, milestones=[60, 120, 160], gamma=0.2)
     for epoch in range(params['num_epochs']):
@@ -27,9 +34,10 @@ def train_and_evaluate_kd(model, teacher_model, train_dataloader, val_dataloader
         logging.info(
             f'Epoch {epoch + 1}/{params["num_epochs"]}, lr:{optimizer.param_groups[0]["lr"]}')
 
-        train_acc, train_loss = train_kd(
-            model, teacher_model, optimizer, loss_fn_kd, train_dataloader, warmup_scheduler, params, epoch)
-        val_metrics = evaluate(model, loss_fn_kd, val_dataloader, kd=True)
+        train_acc, train_loss, cm = train_kd(
+            model, teacher_model, optimizer, loss_fn_kd, train_dataloader, warmup_scheduler, params, epoch, cm)
+        val_metrics = evaluate(
+            model, loss_fn_kd, val_dataloader, kd=True)
 
         val_acc = val_metrics['accuracy']
         is_best = val_acc >= best_val_acc
@@ -57,7 +65,7 @@ def train_and_evaluate_kd(model, teacher_model, train_dataloader, val_dataloader
     writer.close()
 
 
-def train_kd(model, teacher_model, optimizer, loss_fn_kd, dataloader, warmup_scheduler, params, epoch):
+def train_kd(model, teacher_model, optimizer, loss_fn_kd, dataloader, warmup_scheduler, params, epoch, cm):
     model.train()
     teacher_model.eval()
     loss_avg = utils.RunningAverage()
@@ -65,21 +73,33 @@ def train_kd(model, teacher_model, optimizer, loss_fn_kd, dataloader, warmup_sch
     total = 0
     correct = 0
 
+    labels = []
+    preds = []
+
     with tqdm(total=len(dataloader)) as t:
         for train_batch, labels_batch in dataloader:
             if epoch <= 0:
                 warmup_scheduler.step()
 
-            train_batch, labels_batch = train_batch.cuda(), labels_batch.cuda()
+            train_batch, labels_batch = train_batch.to(
+                device), labels_batch.to(device)
 
             # compute model output, fetch teacher output, and compute KD loss
             output_batch = model(train_batch)
 
+            _, pred = output_batch.max(1)
+            preds += pred.cpu()
+            labels += labels_batch.cpu()
+
             # get one batch output from teacher model
             with torch.no_grad():
-                output_teacher_batch = teacher_model(train_batch).cuda()
-                _, preds = output_batch.max(1)
-                print(utils.calc_cm(labels_batch, preds))
+                output_teacher_batch = teacher_model(train_batch).to(device)
+
+                for idx in range(len(labels_batch)):
+                    _, pred = output_teacher_batch[idx].max(0)
+                    if pred != labels_batch[idx]:
+                        output_teacher_batch[idx] *= torch.tensor(
+                            cm[labels_batch[idx]], device=device, dtype=torch.float32)
 
             loss = loss_fn_kd(output_batch, labels_batch,
                               output_teacher_batch, params)
@@ -103,7 +123,7 @@ def train_kd(model, teacher_model, optimizer, loss_fn_kd, dataloader, warmup_sch
     acc = 100. * correct/total
     logging.info(
         '- Train accuracy: {acc:.4f}, training loss: {loss:.4f}'.format(acc=acc, loss=losses.avg))
-    return acc, losses.avg
+    return acc, losses.avg, utils.calc_cm(labels, preds, [x for x in range(0, len(cm[0]))])
 
 
 def train_and_evaluate(model, train_dataloader, val_dataloader, optimizer,
@@ -161,7 +181,8 @@ def train(model, optimizer, loss_fn, dataloader, epoch, warmup_scheduler):
 
     with tqdm(total=len(dataloader)) as t:
         for train_batch, labels_batch in dataloader:
-            train_batch, labels_batch = train_batch.cuda(), labels_batch.cuda()
+            train_batch, labels_batch = train_batch.to(
+                device), labels_batch.to(device)
             if epoch <= 0:
                 warmup_scheduler.step()
 
@@ -196,7 +217,8 @@ def evaluate(model, loss_fn, dataloader, kd=False):
 
     with torch.no_grad():
         for data_batch, labels_batch in dataloader:
-            data_batch, labels_batch = data_batch.cuda(), labels_batch.cuda()
+            data_batch, labels_batch = data_batch.to(
+                device), labels_batch.to(device)
 
             output_batch = model(data_batch)
 

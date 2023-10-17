@@ -10,7 +10,12 @@ from tensorboardX import SummaryWriter
 from torch.optim.lr_scheduler import MultiStepLR
 
 
-device = 'mps'
+if torch.cuda.is_available():
+    device = 'cuda'
+elif torch.backends.mps.is_available():
+    device = 'mps'
+else:
+    device = 'cpu'
 
 
 def train_and_evaluate_kd(model, teacher_model, train_dataloader, val_dataloader, optimizer,
@@ -87,7 +92,7 @@ def train_kd(model, teacher_model, optimizer, loss_fn_kd, dataloader, warmup_sch
             # compute model output, fetch teacher output, and compute KD loss
             output_batch = model(train_batch)
 
-            _, pred = output_batch.max(1)
+            pred = output_batch.argmax(1)
             preds += pred.cpu()
             labels += labels_batch.cpu()
 
@@ -95,11 +100,27 @@ def train_kd(model, teacher_model, optimizer, loss_fn_kd, dataloader, warmup_sch
             with torch.no_grad():
                 output_teacher_batch = teacher_model(train_batch).to(device)
 
-                for idx in range(len(labels_batch)):
-                    _, pred = output_teacher_batch[idx].max(0)
-                    if pred != labels_batch[idx]:
-                        output_teacher_batch[idx] *= torch.tensor(
-                            cm[labels_batch[idx]], device=device, dtype=torch.float32)
+                # with CM
+                # for idx in range(len(labels_batch)):
+                #     pred = output_teacher_batch[idx].argmax(0)
+                #     if pred != labels_batch[idx]:
+                #         temp = torch.tensor(cm[labels_batch[idx]], device=device, dtype=torch.float32)
+                #         temp /= sum(temp)
+
+                #         output_teacher_batch[idx] = torch.where(output_teacher_batch[idx] < 0,
+                #                                               output_teacher_batch[idx] / temp,
+                #                                               output_teacher_batch[idx])
+
+                #         output_teacher_batch[idx] = torch.where(output_teacher_batch[idx] > 0,
+                #                                               output_teacher_batch[idx] * temp,
+                #                                               output_teacher_batch[idx])
+
+                # with PS
+                # idx_p = torch.argmax(output_teacher_batch[idx], dim=0)
+
+                # temp = output_teacher_batch[idx][idx_p]
+                # output_teacher_batch[idx][idx_p] = output_teacher_batch[idx][labels_batch[idx]]
+                # output_teacher_batch[idx][labels_batch[idx]] = temp
 
             loss = loss_fn_kd(output_batch, labels_batch,
                               output_teacher_batch, params)
@@ -109,7 +130,7 @@ def train_kd(model, teacher_model, optimizer, loss_fn_kd, dataloader, warmup_sch
 
             optimizer.step()
 
-            _, predicted = output_batch.max(1)
+            predicted = output_batch.argmax(1)
             total += labels_batch.size(0)
             correct += predicted.eq(labels_batch).sum().item()
 
@@ -192,7 +213,7 @@ def train(model, optimizer, loss_fn, dataloader, epoch, warmup_scheduler):
             loss.backward()
             optimizer.step()
 
-            _, predicted = output_batch.max(1)
+            predicted = output_batch.argmax(1)
             total += labels_batch.size(0)
             correct += predicted.eq(labels_batch).sum().item()
 
@@ -227,7 +248,7 @@ def evaluate(model, loss_fn, dataloader, kd=False):
                 losses.update(loss_fn(output_batch, labels_batch).data,
                               data_batch.size(0))
 
-            _, predicted = output_batch.max(1)
+            predicted = output_batch.argmax(1)
             total += labels_batch.size(0)
             correct += predicted.eq(labels_batch).sum().item()
 

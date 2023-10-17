@@ -35,7 +35,12 @@ def main():
     train_dl = data_loader.fetch_dataloader('train', params)
     dev_dl = data_loader.fetch_dataloader('dev', params)
 
-    device = 'mps'
+    if torch.cuda.is_available():
+        device = 'cuda'
+    elif torch.backends.mps.is_available():
+        device = 'mps'
+    else:
+        device = 'cpu'
 
     teacher_mapping = {
         "mobilenet_v2": mobilenetv2.mobilenetv2,
